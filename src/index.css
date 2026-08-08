@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* stylelint-disable at-rule-no-unknown, no-unknown-at-rule */
+/* stylelint-disable */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* stylelint-enable at-rule-no-unknown, no-unknown-at-rule */
+/* stylelint-enable */
 
 :root {
   --bg-primary: #0a0e14;

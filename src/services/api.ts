@@ -134,7 +134,15 @@ export interface BackendEvidencePanel {
   ipAddress: string;
   hostingProvider: string;
   country: string;
-  registrar: string;
+  registrar: string | {
+  name?: string;
+  ianaId?: string;
+  url?: string;
+  whoisServer?: string;
+  abuseEmail?: string;
+  abusePhone?: string;
+  reseller?: string;
+};
   sslStatus: string;
   whoisStatus: string;
   sha256Hash: string;
@@ -216,7 +224,10 @@ export function mapBackendResponse(res: BackendAnalysisResponse): {
     ipAddress: res.evidencePanel.ipAddress,
     hostingProvider: res.evidencePanel.hostingProvider,
     country: res.evidencePanel.country,
-    registrar: res.evidencePanel.registrar,
+    registrar:
+  typeof res.evidencePanel.registrar === 'string'
+    ? res.evidencePanel.registrar
+    : res.evidencePanel.registrar?.name || 'Unknown',
     sslStatus: res.evidencePanel.sslStatus,
     whoisStatus: res.evidencePanel.whoisStatus,
     sha256Hash: res.evidencePanel.sha256Hash,
