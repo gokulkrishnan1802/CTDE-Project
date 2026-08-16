@@ -61,7 +61,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
-        "*",  # remove in production and list explicit origins
+        "https://cyberverify-ai-frontend.onrender.com",  # remove in production and list explicit origins
     ],
     allow_credentials=True,
     allow_methods=["*"],
