@@ -1,6 +1,6 @@
 import type { AnalysisResult, EvidencePanel, RiskLevel } from '../types';
 
-export const API_BASE_URL = 'http://localhost:8000';
+export const API_BASE_URL = 'http://127.0.0.1:8000';
 
 export class ApiError extends Error {
   status?: number;
@@ -30,6 +30,81 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(detail, res.status);
   }
   return res.json() as Promise<T>;
+}
+// ── Authentication ───────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  full_name: string;
+  email: string;
+  username: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+export interface RegisterRequest {
+  full_name: string;
+  email: string;
+  username: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+const AUTH_TOKEN_KEY = 'cyberverify_access_token';
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function saveAuthToken(token: string): void {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+export function clearAuthToken(): void {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+export async function registerUser(
+  payload: RegisterRequest
+): Promise<AuthResponse> {
+  return request<AuthResponse>('/users/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function loginUser(
+  payload: LoginRequest
+): Promise<AuthResponse> {
+  return request<AuthResponse>('/users/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getCurrentUser(): Promise<AuthUser> {
+  const token = getAuthToken();
+
+  if (!token) {
+    throw new ApiError('No authentication token found.', 401);
+  }
+
+  return request<AuthUser>('/users/me', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
 }
 
 export interface BackendScoreBreakdown {

@@ -13,12 +13,11 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   // login fields
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   // register fields
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -28,39 +27,65 @@ export default function AuthPage() {
     setSuccess('');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    const result = login(username, password);
-    setLoading(false);
-    if (!result.ok) setError(result.error || 'Login failed');
-  };
+  const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+  setError('');
+  setLoading(true);
 
-    if (fullName.trim().length < 2) return setError('Full name must be at least 2 characters.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError('Please enter a valid email address.');
-    if (regUsername.trim().length < 3) return setError('Username must be at least 3 characters.');
-    if (password.length < 6) return setError('Password must be at least 6 characters.');
-    if (password !== confirmPassword) return setError('Passwords do not match.');
+  const result = await login(email, password);
 
-    setLoading(true);
-    const result = register({ fullName: fullName.trim(), email: email.trim(), username: regUsername.trim(), password });
-    setLoading(false);
-    if (!result.ok) return setError(result.error || 'Registration failed');
-    setSuccess('Registration successful! Redirecting to login...');
-    setTimeout(() => {
-      setMode('login');
-      setUsername(regUsername);
-      setPassword('');
-      setSuccess('');
-      setFullName(''); setEmail(''); setRegUsername(''); setPassword(''); setConfirmPassword('');
-    }, 1500);
-  };
+  setLoading(false);
+
+  if (!result.ok) {
+    setError(result.error || 'Login failed');
+  }
+};
+
+const handleRegister = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  setError('');
+  setSuccess('');
+
+  if (fullName.trim().length < 2) {
+    return setError('Full name must be at least 2 characters.');
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return setError('Please enter a valid email address.');
+  }
+
+  if (regUsername.trim().length < 3) {
+    return setError('Username must be at least 3 characters.');
+  }
+
+  if (password.length < 6) {
+    return setError('Password must be at least 6 characters.');
+  }
+
+  if (password !== confirmPassword) {
+    return setError('Passwords do not match.');
+  }
+
+  setLoading(true);
+
+  const result = await register({
+    fullName: fullName.trim(),
+    email: email.trim(),
+    username: regUsername.trim(),
+    password,
+  });
+
+  setLoading(false);
+
+  if (!result.ok) {
+    return setError(result.error || 'Registration failed');
+  }
+
+  // Registration already creates an authenticated session.
+  // The user can directly enter the dashboard.
+};
 
   const handleForgot = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,15 +127,17 @@ export default function AuthPage() {
         {mode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-mono text-gray-500 mb-1.5 uppercase tracking-wider">Username</label>
+              <label className="block text-xs font-mono text-gray-500 mb-1.5 uppercase tracking-wider">
+                  Email
+              </label>
               <div className="relative">
                 <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
                 <input
                   type="text"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
                   className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
-                  placeholder="Enter your username"
+                  placeholder="Enter your email"
                   required
                 />
               </div>
