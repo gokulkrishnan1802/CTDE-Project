@@ -4,7 +4,60 @@ import AuthLayout from '../components/AuthLayout';
 import { Lock, User as UserIcon, AlertCircle, ArrowRight, KeyRound, Mail } from 'lucide-react';
 
 type Mode = 'login' | 'register' | 'forgot';
+const getUserFriendlyError = (error: any): string => {
+  if (!error) {
+    return 'Something went wrong. Please try again.';
+  }
 
+  // If already a normal string
+  if (typeof error === 'string') {
+    try {
+      const parsed = JSON.parse(error);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) =>
+            item?.msg?.replace(/^Value error,\s*/i, '')
+          )
+          .filter(Boolean)
+          .join(', ');
+      }
+
+      if (parsed?.detail) {
+        if (Array.isArray(parsed.detail)) {
+          return parsed.detail
+            .map((item: any) =>
+              item?.msg?.replace(/^Value error,\s*/i, '')
+            )
+            .filter(Boolean)
+            .join(', ');
+        }
+
+        return parsed.detail;
+      }
+    } catch {
+      // Not JSON, just use the string
+    }
+
+    return error;
+  }
+
+  // FastAPI/Pydantic error object
+  if (error?.detail) {
+    if (Array.isArray(error.detail)) {
+      return error.detail
+        .map((item: any) =>
+          item?.msg?.replace(/^Value error,\s*/i, '')
+        )
+        .filter(Boolean)
+        .join(', ');
+    }
+
+    return error.detail;
+  }
+
+  return 'Something went wrong. Please try again.';
+};
 export default function AuthPage() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
@@ -38,7 +91,7 @@ export default function AuthPage() {
   setLoading(false);
 
   if (!result.ok) {
-    setError(result.error || 'Login failed');
+    setError(getUserFriendlyError(result.error));
   }
 };
 
@@ -52,7 +105,7 @@ const handleRegister = async (e: React.FormEvent) => {
     return setError('Full name must be at least 2 characters.');
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return setError('Please enter a valid email address.');
   }
 
@@ -60,8 +113,8 @@ const handleRegister = async (e: React.FormEvent) => {
     return setError('Username must be at least 3 characters.');
   }
 
-  if (password.length < 6) {
-    return setError('Password must be at least 6 characters.');
+  if (password.length < 8) {
+    return setError('Password must be at least 8 characters.');
   }
 
   if (password !== confirmPassword) {
@@ -113,9 +166,9 @@ const handleRegister = async (e: React.FormEvent) => {
         </div>
 
         {error && (
-          <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400 animate-fadeIn">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+          <div className="mb-4 flex items-start gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400 animate-fadeIn">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span className="leading-relaxed">{error}</span>
           </div>
         )}
         {success && (
@@ -149,7 +202,10 @@ const handleRegister = async (e: React.FormEvent) => {
                 <input
                   type="password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={e => {
+  setPassword(e.target.value);
+  setError('');
+}}
                   className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
                   placeholder="Enter your password"
                   required
@@ -208,7 +264,10 @@ const handleRegister = async (e: React.FormEvent) => {
                 <input
                   type="text"
                   value={regUsername}
-                  onChange={e => setRegUsername(e.target.value)}
+                  onChange={e => {
+                    setRegUsername(e.target.value);
+                    setError('');
+                  }}
                   className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
                   placeholder="Choose a username"
                   required
@@ -223,7 +282,10 @@ const handleRegister = async (e: React.FormEvent) => {
                   <input
                     type="password"
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={e => {
+                      setPassword(e.target.value);
+                      setError('');
+                    }}
                     className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg pl-10 pr-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
                     placeholder="Min 6 chars"
                     required
@@ -237,7 +299,10 @@ const handleRegister = async (e: React.FormEvent) => {
                   <input
                     type="password"
                     value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
+                    onChange={e => {
+                      setConfirmPassword(e.target.value);
+                      setError('');
+                    }}
                     className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg pl-10 pr-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
                     placeholder="Repeat"
                     required
