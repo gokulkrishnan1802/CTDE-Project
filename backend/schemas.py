@@ -34,7 +34,40 @@ class Token(BaseModel):
     token_type: str = "bearer"
     user: UserOut
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
 
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    reset_token: str
+    new_password: str
+    confirm_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain an uppercase letter")
+
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain a lowercase letter")
+
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain a number")
+
+        if not any(not c.isalnum() for c in v):
+            raise ValueError("Password must contain a special character")
+
+        return v
 # ── Investigation Request ─────────────────────────────────────────────────────
 
 class AnalyzeRequest(BaseModel):

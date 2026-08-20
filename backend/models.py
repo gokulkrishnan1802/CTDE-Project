@@ -21,7 +21,47 @@ class User(Base):
 
     investigations: Mapped[list["Investigation"]] = relationship("Investigation", back_populates="user")
 
+class PasswordResetOTP(Base):
+    __tablename__ = "password_reset_otps"
 
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4())
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(255),
+        index=True
+    )
+
+    otp_hash: Mapped[str] = mapped_column(
+        String(255)
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True)
+    )
+
+    attempts: Mapped[int] = mapped_column(
+        Integer,
+        default=0
+    )
+
+    verified: Mapped[bool] = mapped_column(
+        default=False
+    )
+
+    reset_token: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_now
+    )
+    
 class Investigation(Base):
     __tablename__ = "investigations"
 

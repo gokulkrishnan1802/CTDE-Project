@@ -34,6 +34,13 @@ class Settings(BaseSettings):
 
     # Reports
     REPORTS_DIR: str = "reports"
+    
+    # Email / OTP
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
 
     class Config:
         env_file = ".env"
