@@ -165,10 +165,86 @@ export default function DashboardPage({
   ];
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+  <div className="space-y-6 animate-fadeIn">
 
-      {/* ================================================= */}
-      {/* HEADER */}
+    {/* Cyber Forensics Hero Animation */}
+    <section className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#0b111b] min-h-[220px]">
+
+      {/* Background video */}
+      <video
+  className="absolute inset-0 w-full h-full object-cover"
+  src="/animations/cyber-security.mp4"
+  autoPlay
+  muted
+  loop
+  playsInline
+  preload="auto"
+/>
+<div className="absolute inset-0 bg-[#071018]/55" />
+
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#071018]/95 via-[#071018]/75 to-[#071018]/35" />
+
+      {/* Cyber grid overlay */}
+      <div className="absolute inset-0 cyber-grid opacity-20" />
+
+      {/* Hero content */}
+      <div className="relative z-10 flex min-h-[220px] items-center px-6 py-8 lg:px-10">
+
+        <div className="max-w-2xl">
+
+          {/* Status */}
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400">
+              Forensic System Online
+            </span>
+          </div>
+
+          {/* Title */}
+          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-white">
+            Cyber Investigation
+            <span className="text-cyan-400"> Command Center</span>
+          </h1>
+
+          {/* Description */}
+          <p className="mt-3 text-sm lg:text-base text-gray-400 max-w-xl">
+            Analyze digital evidence, investigate threats, correlate
+            intelligence and generate AI-assisted forensic insights.
+          </p>
+
+          {/* Technology badges */}
+          <div className="flex flex-wrap gap-2 mt-5">
+
+            <span className="px-3 py-1.5 rounded-md border border-cyan-500/20 bg-cyan-500/5 text-[10px] font-mono text-cyan-400">
+              DIGITAL FORENSICS
+            </span>
+
+            <span className="px-3 py-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/5 text-[10px] font-mono text-emerald-400">
+              THREAT INTELLIGENCE
+            </span>
+
+            <span className="px-3 py-1.5 rounded-md border border-purple-500/20 bg-purple-500/5 text-[10px] font-mono text-purple-400">
+              AI ANALYSIS
+            </span>
+
+            <span className="px-3 py-1.5 rounded-md border border-blue-500/20 bg-blue-500/5 text-[10px] font-mono text-blue-400">
+              MITRE ATT&CK
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* Scan line animation */}
+      <div className="absolute left-0 right-0 top-0 h-px bg-cyan-400/30 animate-scan-line" />
+
+    </section>
+
+    {/* Header */}
       {/* ================================================= */}
 
       <section className="relative overflow-hidden rounded-2xl border border-cyan-500/10 bg-[#0f1620] p-6">
