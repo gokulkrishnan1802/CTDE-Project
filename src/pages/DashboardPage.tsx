@@ -168,11 +168,11 @@ export default function DashboardPage({
   <div className="space-y-6 animate-fadeIn">
 
     {/* Cyber Forensics Hero Animation */}
-    <section className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#0b111b] min-h-[220px]">
+    <section className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#0b111b] aspect-video">
 
       {/* Background video */}
       <video
-  className="absolute inset-0 w-full h-full object-cover"
+  className="absolute inset-0 w-full h-full object-contain"
   src="/animations/cyber-security.mp4"
   autoPlay
   muted
