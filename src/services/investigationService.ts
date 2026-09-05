@@ -1,13 +1,17 @@
-import type { AnalysisResult, EvidencePanel, EvidenceType, TimelineEvent } from '../types';
-import type { BackendAnalysisResponse } from './api';
-import { mapBackendResponse } from './api';
+import type {
+  AnalysisResult,
+  EvidencePanel,
+  EvidenceType,
+  TimelineEvent,
+} from '../types';
+
 import {
-  investigateURL,
-  investigateEmail,
-  investigateQR,
-  investigateAPK,
-  investigateSender,
-} from '../lib/engine/pipeline';
+  postAnalyze,
+  postAnalyzeQr,
+  postAnalyzeEmailHeaders,
+  mapBackendResponse,
+  type BackendAnalysisResponse,
+} from './api';
 
 export interface InvestigationResult {
   analysis: AnalysisResult;
@@ -17,40 +21,139 @@ export interface InvestigationResult {
   raw: BackendAnalysisResponse;
 }
 
-const MAX_MS = 25000;
+const MAX_MS = 90000;
 
-export async function runInvestigation(
-  evidenceType: EvidenceType,
-  evidenceValue: string,
-): Promise<InvestigationResult> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Investigation timed out. Please check your internet connection and try again.')), MAX_MS)
+function createTimeout(message: string) {
+  return new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(message)), MAX_MS)
   );
+}
 
-  const investigation = (async (): Promise<BackendAnalysisResponse> => {
-    switch (evidenceType) {
-      case 'url':     return investigateURL(evidenceValue);
-      case 'email':   return investigateEmail(evidenceValue);
-      case 'qr':      return investigateQR(evidenceValue);
-      case 'apk':     return investigateAPK(evidenceValue);
-      case 'sender':  return investigateSender(evidenceValue);
-      default:        throw new Error(`Unsupported evidence type: ${evidenceType}`);
-    }
-  })();
-
-  const backend = await Promise.race([investigation, timeout]);
-  const { analysis, evidencePanel, aiConfidence } = mapBackendResponse(backend);
+async function buildInvestigationResult(
+  backend: BackendAnalysisResponse
+): Promise<InvestigationResult> {
+  const {
+    analysis,
+    evidencePanel,
+    aiConfidence,
+  } = mapBackendResponse(backend);
 
   const now = Date.now();
+
   const steps = [
-    'Evidence Uploaded', 'Identity Verified', 'SSL Checked', 'WHOIS Completed',
-    'Reputation Checked', 'MITRE Mapping Completed', 'AI Summary Generated', 'Investigation Completed',
+    'Evidence Uploaded',
+    'Identity Verified',
+    'SSL Checked',
+    'WHOIS Completed',
+    'Reputation Checked',
+    'MITRE Mapping Completed',
+    'AI Summary Generated',
+    'Investigation Completed',
   ];
-  const timeline: TimelineEvent[] = steps.map((label, i) => ({
+
+  const timeline: TimelineEvent[] = steps.map((label, index) => ({
     label,
-    timestamp: new Date(now + i * 800).toISOString(),
+    timestamp: new Date(now + index * 800).toISOString(),
     status: 'done' as const,
   }));
 
-  return { analysis, evidencePanel, timeline, aiConfidence, raw: backend };
+  return {
+    analysis,
+    evidencePanel,
+    timeline,
+    aiConfidence,
+    raw: backend,
+  };
+}
+
+/**
+ * Normal investigation for:
+ * URL, APK, QR text/content, sender, etc.
+ *
+ * Email headers should use runEmailHeaderInvestigation().
+ */
+export async function runInvestigation(
+  evidenceType: EvidenceType,
+  evidenceValue: string
+): Promise<InvestigationResult> {
+  const investigation = postAnalyze({
+    evidenceType,
+    evidenceValue: evidenceValue.trim(),
+  });
+
+  const backend = await Promise.race([
+    investigation,
+    createTimeout(
+      'Investigation timed out. Please check that the CTDE backend is running and try again.'
+    ),
+  ]);
+
+  return buildInvestigationResult(backend);
+}
+
+/**
+ * Real Email Header forensic investigation.
+ *
+ * Sends raw email headers to:
+ * POST /analyze/email
+ *
+ * The backend performs:
+ * - SPF analysis
+ * - DKIM analysis
+ * - DMARC analysis
+ * - Reply-To analysis
+ * - Return-Path analysis
+ * - Received header/IP analysis
+ * - Authentication-Results analysis
+ * - Spoofing detection
+ * - Suspicious keyword detection
+ * - DNS/MX evidence
+ * - Risk analysis
+ */
+export async function runEmailHeaderInvestigation(
+  rawHeaders: string
+): Promise<InvestigationResult> {
+  if (!rawHeaders || !rawHeaders.trim()) {
+    throw new Error('Please provide email headers.');
+  }
+
+  if (rawHeaders.trim().length < 20) {
+    throw new Error(
+      'Please provide valid email headers. Paste the complete email header.'
+    );
+  }
+
+  const investigation = postAnalyzeEmailHeaders(
+    rawHeaders.trim()
+  );
+
+  const backend = await Promise.race([
+    investigation,
+    createTimeout(
+      'Email header investigation timed out. Please check that the CTDE backend is running and try again.'
+    ),
+  ]);
+
+  return buildInvestigationResult(backend);
+}
+
+/**
+ * Real QR image investigation.
+ *
+ * The image file is sent to the FastAPI /analyze/qr endpoint.
+ * The backend decodes the QR and performs the full CTDE analysis.
+ */
+export async function runQrInvestigation(
+  file: File
+): Promise<InvestigationResult> {
+  const investigation = postAnalyzeQr(file);
+
+  const backend = await Promise.race([
+    investigation,
+    createTimeout(
+      'QR investigation timed out. Please check that the CTDE backend is running and try again.'
+    ),
+  ]);
+
+  return buildInvestigationResult(backend);
 }

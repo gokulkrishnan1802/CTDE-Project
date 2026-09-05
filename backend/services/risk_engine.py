@@ -67,33 +67,90 @@ def score_url(evidence: dict) -> RiskResult:
             elif "day" in age:
                 score -= 25; factors.append(RiskFactor("Very newly registered domain (days old)", False, -25))
 
-    # --- SSL ---
+        # --- SSL / TLS ---
     if ssl:
-        if "Valid" in ssl.sslStatus:
-            score += 15; factors.append(RiskFactor("Valid TLS/SSL certificate", True, 15))
-            if "TLSv1.3" in ssl.tlsVersion:
-                score += 5; factors.append(RiskFactor("Modern TLS 1.3 protocol", True, 5))
-            elif "TLSv1.2" in ssl.tlsVersion:
-                score += 2; factors.append(RiskFactor("TLS 1.2 protocol", True, 2))
-        elif "Not available" in ssl.sslStatus:
-            score -= 20; factors.append(RiskFactor("No valid SSL certificate", False, -20))
-        elif "Expired" in ssl.sslStatus:
-            score -= 15; factors.append(RiskFactor("Expired SSL certificate", False, -15))
+        ssl_status = str(ssl.sslStatus or "").strip().lower()
+        tls_version = str(ssl.tlsVersion or "").strip().lower()
 
-    # --- Reputation ---
+        if ssl_status == "valid":
+            score += 15
+            factors.append(
+                RiskFactor("Valid TLS/SSL certificate", True, 15)
+            )
+
+            if "tlsv1.3" in tls_version:
+                score += 5
+                factors.append(
+                    RiskFactor("Modern TLS 1.3 protocol", True, 5)
+                )
+            elif "tlsv1.2" in tls_version:
+                score += 2
+                factors.append(
+                    RiskFactor("TLS 1.2 protocol", True, 2)
+                )
+
+        elif "expired" in ssl_status:
+            score -= 15
+            factors.append(
+                RiskFactor("Expired SSL certificate", False, -15)
+            )
+
+        elif "not available" in ssl_status or "invalid" in ssl_status:
+            score -= 20
+            factors.append(
+                RiskFactor("No valid SSL certificate", False, -20)
+            )
+
+       # --- Reputation ---
     if reputation:
         if reputation.overall == "malicious":
-            score -= 40; factors.append(RiskFactor("Flagged malicious by reputation sources", False, -40))
+            score -= 40
+            factors.append(
+                RiskFactor(
+                    "Confirmed malicious reputation detected",
+                    False,
+                    -40,
+                )
+            )
+
         elif reputation.overall == "suspicious":
-            score -= 20; factors.append(RiskFactor("Flagged suspicious by reputation sources", False, -20))
-        else:
-            # Only add points if we actually checked (not skipped)
-            checked = not all("not configured" in s.lower() for s in [
-                reputation.virusTotal, reputation.googleSafeBrowsing,
-                reputation.urlScan, reputation.abuseIpdb
-            ])
-            if checked:
-                score += 20; factors.append(RiskFactor("Clean reputation — no blocklist detections", True, 20))
+            score -= 20
+            factors.append(
+                RiskFactor(
+                    "Suspicious reputation detected",
+                    False,
+                    -20,
+                )
+            )
+
+        elif reputation.overall == "clean":
+            checked_sources = []
+
+            for source in [
+                reputation.virusTotal,
+                reputation.googleSafeBrowsing,
+                reputation.urlScan,
+                reputation.abuseIpdb,
+            ]:
+                source_text = str(source).lower()
+
+                if (
+                    "not configured" not in source_text
+                    and "not checked" not in source_text
+                    and "skipped" not in source_text
+                    and "request failed" not in source_text
+                ):
+                    checked_sources.append(source)
+
+            if checked_sources:
+                score += 20
+                factors.append(
+                    RiskFactor(
+                        "Clean reputation — no confirmed threats detected",
+                        True,
+                        20,
+                    )
+                )
 
     # --- Brand impersonation ---
     if brand:
@@ -134,8 +191,17 @@ def score_url(evidence: dict) -> RiskResult:
     elif dns and not dns.aRecord:
         score -= 10; factors.append(RiskFactor("Domain does not resolve (no DNS A record)", False, -10))
 
+    # --- Malicious reputation safety override ---
+    if reputation and reputation.overall == "malicious":
+        score = min(score, 40)
+
     score = max(0, min(100, score))
-    return RiskResult(score=score, risk_level=score_to_risk_level(score), factors=factors)
+
+    return RiskResult(
+        score=score,
+        risk_level=score_to_risk_level(score),
+        factors=factors,
+    )
 
 
 def score_email(evidence: dict) -> RiskResult:
