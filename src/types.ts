@@ -14,7 +14,10 @@ export type EvidenceType =
   | 'qr'
   | 'sender';
 
-export type RiskLevel = 'Safe' | 'Suspicious' | 'Dangerous';
+export type RiskLevel =
+  | 'Safe'
+  | 'Suspicious'
+  | 'Dangerous';
 
 export interface TimelineEvent {
   label: string;
@@ -32,6 +35,13 @@ export interface EvidencePanel {
   sslStatus: string;
   whoisStatus: string;
   sha256Hash: string;
+}
+
+export interface QRAnalysis {
+  decodedUrl: string;
+  redirects: string[];
+  reputation: string;
+  qrRiskLevel: string;
 }
 
 export interface Investigation {
@@ -61,18 +71,49 @@ export interface AnalysisResult {
   whoisInfo: string;
   brandImpersonation: string;
   urlAnalysis: string;
+
   apkPermissionAnalysis?: string;
+    apk?: {
+    sha256: string;
+    permissions: string[];
+    dangerousPermissions: string[];
+    receivers: string[];
+    services: string[];
+    activities: string[];
+    malwareDetection: string;
+    riskScore: number;
+  };
   senderVerification?: string;
   qrVerification?: string;
+
+  // Structured QR investigation data
+  qr?: QRAnalysis;
+
   reputationAnalysis: string;
+
   trustScore: number;
   riskLevel: RiskLevel;
+
   reasonBehindDecision: string;
   investigationStory: string;
+
   mitreMapping: string[];
+
   aiSummary: string;
   aiExplanation: string;
+
   recommendations: string[];
+
+  scoreBreakdown?: ScoreBreakdown[];
+
+  email?: {
+  spf: string;
+  dkim: string;
+  dmarc: string;
+  replyToAnalysis: string;
+  senderDomain: string;
+  spoofDetection: string;
+};
 }
 
 export interface ChatMessage {
@@ -80,4 +121,10 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+}
+
+export interface ScoreBreakdown {
+  label: string;
+  positive: boolean;
+  points: number;
 }

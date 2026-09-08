@@ -91,7 +91,19 @@ class AnalyzeRequest(BaseModel):
         if v not in allowed:
             raise ValueError(f"evidenceType must be one of {allowed}")
         return v
+class EmailHeaderRequest(BaseModel):
+    rawHeaders: str
 
+    @field_validator("rawHeaders")
+    @classmethod
+    def validate_raw_headers(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Email headers cannot be empty")
+
+        if len(v.strip()) < 20:
+            raise ValueError("Please provide valid email headers")
+
+        return v.strip()
 
 class AskAIRequest(BaseModel):
     question: str

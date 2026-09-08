@@ -167,82 +167,153 @@ export default function DashboardPage({
   return (
   <div className="space-y-6 animate-fadeIn">
 
-    {/* Cyber Forensics Hero Animation */}
-    <section className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#0b111b] aspect-video">
+    {/* =========================================================
+    CYBER FORENSICS HERO
+    ========================================================= */}
+<section className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#071018] min-h-[280px] lg:min-h-[320px] group">
 
-      {/* Background video */}
-      <video
-  className="absolute inset-0 w-full h-full object-contain"
-  src="/animations/cyber-security.mp4"
-  autoPlay
-  muted
-  loop
-  playsInline
-  preload="auto"
-/>
-<div className="absolute inset-0 bg-[#071018]/55" />
+  {/* Background Video */}
+  <video
+    className="absolute inset-0 w-full h-full object-cover scale-[1.02] transition-transform duration-[8000ms] ease-out group-hover:scale-105"
+    autoPlay
+    muted
+    loop
+    playsInline
+    preload="auto"
+  >
+    <source
+      src="/animations/cyber-security.mp4"
+      type="video/mp4"
+    />
+  </video>
 
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#071018]/95 via-[#071018]/75 to-[#071018]/35" />
+  {/* Main dark overlay */}
+  <div className="absolute inset-0 bg-[#050b12]/45" />
 
-      {/* Cyber grid overlay */}
-      <div className="absolute inset-0 cyber-grid opacity-20" />
+  {/* Left-side gradient for readable text */}
+  <div className="absolute inset-0 bg-gradient-to-r from-[#050b12]/95 via-[#071018]/70 to-transparent" />
 
-      {/* Hero content */}
-      <div className="relative z-10 flex min-h-[220px] items-center px-6 py-8 lg:px-10">
+  {/* Bottom gradient */}
+  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050b12]/80 to-transparent" />
 
-        <div className="max-w-2xl">
+  {/* Cyber grid */}
+  <div className="absolute inset-0 cyber-grid opacity-10 pointer-events-none" />
 
-          {/* Status */}
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+  {/* Animated scan line */}
+  <div className="absolute left-0 right-0 h-px bg-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.5)] animate-scan pointer-events-none" />
 
-            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400">
-              Forensic System Online
-            </span>
-          </div>
+  {/* Decorative glow */}
+  <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+  <div className="absolute -left-20 -bottom-20 w-64 h-64 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
 
-          {/* Title */}
-          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-white">
-            Cyber Investigation
-            <span className="text-cyan-400"> Command Center</span>
-          </h1>
+  {/* Hero Content */}
+  <div className="relative z-10 flex min-h-[280px] lg:min-h-[320px] items-center px-6 py-8 lg:px-10">
 
-          {/* Description */}
-          <p className="mt-3 text-sm lg:text-base text-gray-400 max-w-xl">
-            Analyze digital evidence, investigate threats, correlate
-            intelligence and generate AI-assisted forensic insights.
-          </p>
+    <div className="max-w-3xl animate-fadeIn">
 
-          {/* Technology badges */}
-          <div className="flex flex-wrap gap-2 mt-5">
+      {/* System Status */}
+      <div className="flex items-center gap-2 mb-4">
 
-            <span className="px-3 py-1.5 rounded-md border border-cyan-500/20 bg-cyan-500/5 text-[10px] font-mono text-cyan-400">
-              DIGITAL FORENSICS
-            </span>
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+        </span>
 
-            <span className="px-3 py-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/5 text-[10px] font-mono text-emerald-400">
-              THREAT INTELLIGENCE
-            </span>
+        <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-emerald-400">
+          Forensic System Online
+        </span>
 
-            <span className="px-3 py-1.5 rounded-md border border-purple-500/20 bg-purple-500/5 text-[10px] font-mono text-purple-400">
-              AI ANALYSIS
-            </span>
+        <span className="h-px w-8 bg-emerald-500/30" />
 
-            <span className="px-3 py-1.5 rounded-md border border-blue-500/20 bg-blue-500/5 text-[10px] font-mono text-blue-400">
-              MITRE ATT&CK
-            </span>
+        <span className="text-[9px] font-mono text-gray-500 uppercase tracking-wider">
+          AI Engine Ready
+        </span>
 
-          </div>
+      </div>
 
+      {/* Main Title */}
+      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight">
+
+        Cyber Investigation
+
+        <span className="block text-cyan-400 drop-shadow-[0_0_18px_rgba(34,211,238,0.25)]">
+          Command Center
+        </span>
+
+      </h1>
+
+      {/* Description */}
+      <p className="mt-4 text-sm lg:text-base text-gray-300/90 max-w-2xl leading-relaxed">
+
+        Analyze digital evidence, investigate threats, correlate
+        intelligence and generate AI-assisted forensic insights
+        from a unified investigation platform.
+
+      </p>
+
+      {/* Technology Badges */}
+      <div className="flex flex-wrap gap-2 mt-5">
+
+        <span className="px-3 py-1.5 rounded-md border border-cyan-500/25 bg-cyan-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-cyan-300">
+          DIGITAL FORENSICS
+        </span>
+
+        <span className="px-3 py-1.5 rounded-md border border-emerald-500/25 bg-emerald-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-emerald-300">
+          THREAT INTELLIGENCE
+        </span>
+
+        <span className="px-3 py-1.5 rounded-md border border-purple-500/25 bg-purple-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-purple-300">
+          AI ANALYSIS
+        </span>
+
+        <span className="px-3 py-1.5 rounded-md border border-blue-500/25 bg-blue-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-blue-300">
+          MITRE ATT&CK
+        </span>
+
+      </div>
+
+      {/* Quick system indicators */}
+      <div className="flex flex-wrap items-center gap-5 mt-5 text-[9px] font-mono text-gray-500">
+
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          EVIDENCE ENGINE
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+          THREAT ENGINE
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+          AI ASSISTANT
         </div>
 
       </div>
 
-      {/* Scan line animation */}
-      <div className="absolute left-0 right-0 top-0 h-px bg-cyan-400/30 animate-scan-line" />
+    </div>
 
-    </section>
+  </div>
+
+  {/* Top-right forensic decoration */}
+  <div className="absolute top-5 right-5 hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg border border-cyan-500/15 bg-black/20 backdrop-blur-sm">
+
+    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+
+    <span className="text-[9px] font-mono tracking-wider text-cyan-400/70">
+      SECURE CHANNEL
+    </span>
+
+  </div>
+
+  {/* Corner brackets */}
+  <div className="absolute top-3 left-3 w-5 h-5 border-l border-t border-cyan-400/30 pointer-events-none" />
+  <div className="absolute top-3 right-3 w-5 h-5 border-r border-t border-cyan-400/30 pointer-events-none" />
+  <div className="absolute bottom-3 left-3 w-5 h-5 border-l border-b border-cyan-400/30 pointer-events-none" />
+  <div className="absolute bottom-3 right-3 w-5 h-5 border-r border-b border-cyan-400/30 pointer-events-none" />
+
+</section>
 
     {/* Header */}
       {/* ================================================= */}
