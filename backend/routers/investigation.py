@@ -3,7 +3,9 @@ Investigation router.
 POST /analyze — main investigation endpoint (called by the frontend).
 Dispatches to the correct service pipeline based on evidenceType.
 """
-
+import io
+import os
+import zipfile
 import logging
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -37,6 +39,7 @@ from services.email_svc import (
     investigate_email_headers,
 )
 from services.qr_svc import investigate_qr
+from services.apk_svc import analyze_apk_bytes
 
 from services.risk_engine import (
     score_url,
@@ -1439,6 +1442,250 @@ confidence=50,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# APK FILE UPLOAD ENDPOINT
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/apk", response_model=AnalysisResponse)
+async def analyze_apk_file(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
+    """
+    Analyze an uploaded Android APK binary.
+
+    The actual APK bytes are passed to the existing APK forensic service.
+    This endpoint is separate from POST /analyze because APK analysis
+    requires multipart file upload rather than JSON evidenceValue.
+    """
+
+    # ── APK file validation ───────────────────────────────────────────────
+    MAX_APK_SIZE = 150 * 1024 * 1024  # 150 MB
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="APK filename is required.",
+        )
+
+    if not file.filename.lower().endswith(".apk"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please upload a valid .apk file.",
+        )
+
+    apk_bytes = await file.read()
+
+    if not apk_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded APK file is empty.",
+        )
+
+    if len(apk_bytes) > MAX_APK_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="APK file is too large. Maximum allowed size is 150 MB.",
+        )
+
+    # APK files use the ZIP container format.
+    try:
+        with zipfile.ZipFile(io.BytesIO(apk_bytes)) as apk_zip:
+            if apk_zip.testzip() is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The APK file is corrupted.",
+                )
+
+            if "AndroidManifest.xml" not in apk_zip.namelist():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid APK file. AndroidManifest.xml is missing.",
+                )
+    except zipfile.BadZipFile:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid APK file. The uploaded file is not a valid APK package.",
+        )
+
+    try:
+        apk_evidence = analyze_apk_bytes(
+            apk_bytes,
+            file.filename,
+        )
+
+        from schemas import APKData
+
+        risk_result = score_apk(apk_evidence)
+
+        reputation = None
+        try:
+            reputation = await check_reputation(file.filename)
+        except Exception as exc:
+            logger.warning("APK reputation lookup failed: %s", exc)
+
+        mitre = _map_mitre_apk(apk_evidence)
+
+        recommendations = []
+        if apk_evidence.get("malwareFlags"):
+            recommendations.append(
+                "Do not install or execute this APK until its source and behavior are verified."
+            )
+        if apk_evidence.get("dangerousPermissions"):
+            recommendations.append(
+                "Review the requested Android permissions and confirm they are required by the app."
+            )
+        if not recommendations:
+            recommendations.append(
+                "Verify the APK source, publisher, and signing certificate before installation."
+            )
+
+        ai_context = {
+            "evidenceType": "apk",
+            "evidenceValue": file.filename,
+            "trustScore": risk_result.score,
+            "riskLevel": risk_result.risk_level,
+            "scoreFactors": [
+                {
+                    "label": factor.label,
+                    "positive": factor.positive,
+                    "points": factor.points,
+                }
+                for factor in risk_result.factors
+            ],
+            "apkEvidence": apk_evidence,
+        }
+
+        ai_texts = await generate_explanation(ai_context)
+
+        apk_data = APKData(
+            sha256=apk_evidence.get("sha256", ""),
+            permissions=apk_evidence.get("permissions", []),
+            dangerousPermissions=apk_evidence.get("dangerousPermissions", []),
+            receivers=apk_evidence.get("receivers", []),
+            services=apk_evidence.get("services", []),
+            activities=apk_evidence.get("activities", []),
+            malwareDetection=apk_evidence.get(
+                "malwareDetection",
+                "Unknown",
+            ),
+            riskScore=apk_evidence.get("riskScore", risk_result.score),
+        )
+
+        reputation_text = (
+            f"{reputation.virusTotal}. {reputation.googleSafeBrowsing}."
+            if reputation
+            else "Threat reputation lookup unavailable."
+        )
+
+        result = AnalysisResponse(
+            evidenceType="apk",
+            evidenceValue=file.filename,
+            evidenceSummary=(
+                f"APK forensic investigation of '{file.filename}'. "
+                f"SHA-256: {apk_evidence.get('sha256', '')}. "
+                f"Permissions: {len(apk_evidence.get('permissions', []))}. "
+                f"Dangerous permissions: "
+                f"{len(apk_evidence.get('dangerousPermissions', []))}."
+            ),
+            identityVerification=(
+                f"APK filename: {file.filename}. "
+                f"Signing information: "
+                f"{apk_evidence.get('signingCertificate', 'Unknown')}."
+            ),
+            domainVerification="N/A for APK",
+            certificateValidation=(
+                f"Signing certificate: "
+                f"{apk_evidence.get('signingCertificate', 'Unknown')}."
+            ),
+            whoisInfo="N/A for APK",
+            brandImpersonation="Static APK brand impersonation analysis not available.",
+            urlAnalysis=(
+                f"Network URLs extracted: "
+                f"{len(apk_evidence.get('networkUrls', []))}."
+            ),
+            apkPermissionAnalysis=(
+                f"Permissions: {len(apk_evidence.get('permissions', []))}. "
+                f"Dangerous permissions: "
+                f"{len(apk_evidence.get('dangerousPermissions', []))}. "
+                f"Malware indicators: "
+                f"{len(apk_evidence.get('malwareFlags', []))}."
+            ),
+            reputationAnalysis=reputation_text,
+            trustScore=risk_result.score,
+            riskLevel=risk_result.risk_level,
+            confidence=85 if apk_evidence.get("permissions") is not None else 50,
+            reasonBehindDecision=_reason_text(risk_result),
+            investigationStory=ai_texts["investigationStory"],
+            mitreMapping=[
+                technique["id"] + " — " + technique["name"]
+                for technique in mitre
+            ],
+            aiSummary=ai_texts["aiSummary"],
+            aiExplanation=ai_texts["aiExplanation"],
+            recommendations=recommendations,
+            scoreBreakdown=[
+                ScoreBreakdown(
+                    label=factor.label,
+                    positive=factor.positive,
+                    points=factor.points,
+                )
+                for factor in risk_result.factors
+            ],
+            mitreTechniques=[
+                MitreTechnique(
+                    techniqueId=technique["id"],
+                    techniqueName=technique["name"],
+                    description=technique["desc"],
+                )
+                for technique in mitre
+            ],
+            apk=apk_data,
+            reputation=reputation,
+            evidencePanel=EvidencePanelData(
+                originalUrl=file.filename,
+                resolvedUrl="N/A",
+                ipAddress="N/A",
+                hostingProvider="N/A",
+                country="N/A",
+                registrar="N/A",
+                sslStatus="N/A",
+                whoisStatus="N/A",
+                sha256Hash=apk_evidence.get("sha256", ""),
+            ),
+        )
+
+        if current_user:
+            try:
+                inv = Investigation(
+                    case_id=_generate_case_id(db),
+                    user_id=current_user.id,
+                    evidence_type="apk",
+                    evidence_value=file.filename,
+                    trust_score=result.trustScore,
+                    risk_level=result.riskLevel,
+                    confidence=result.confidence,
+                    result_json=result.model_dump(),
+                )
+                db.add(inv)
+                db.commit()
+            except Exception as exc:
+                logger.warning("Failed to persist APK investigation: %s", exc)
+                db.rollback()
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("APK file analysis failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"APK analysis failed: {exc}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # QR PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -2216,16 +2463,61 @@ async def analyze_qr_image(
     """
     Analyze an uploaded QR-code image.
 
-    The image is decoded on the backend and then passed
-    through the normal CTDE QR investigation pipeline.
+    Validation performed before QR analysis:
+    - filename check
+    - supported image format check
+    - empty file check
+    - file size check
+    - QR readability check
     """
 
-    if not file.content_type or not file.content_type.startswith("image/"):
+    # ── Supported QR image formats ─────────────────────────────────────
+    ALLOWED_QR_TYPES = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/webp": ".webp",
+    }
+
+    MAX_QR_SIZE = 10 * 1024 * 1024  # 10 MB
+
+    # ── Filename validation ────────────────────────────────────────────
+    if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please upload a valid QR-code image."
+            detail="QR image filename is required."
         )
 
+    extension = os.path.splitext(file.filename)[1].lower()
+
+    allowed_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+
+    if extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported QR image format. Use PNG, JPG, JPEG, or WEBP."
+        )
+
+    # ── MIME type validation ───────────────────────────────────────────
+    if file.content_type not in ALLOWED_QR_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported QR image type. Use PNG, JPG, JPEG, or WEBP."
+        )
+
+    # JPEG can use both .jpg and .jpeg
+    expected_extension = ALLOWED_QR_TYPES[file.content_type]
+
+    if extension != expected_extension:
+        if not (
+            file.content_type == "image/jpeg"
+            and extension == ".jpeg"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image extension does not match its file type."
+            )
+
+    # ── Read file ──────────────────────────────────────────────────────
     image_bytes = await file.read()
 
     if not image_bytes:
@@ -2234,6 +2526,15 @@ async def analyze_qr_image(
             detail="Uploaded QR image is empty."
         )
 
+    # ── Size validation ────────────────────────────────────────────────
+    if len(image_bytes) > MAX_QR_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="QR image is too large. Maximum allowed size is 10 MB."
+        )
+
+    # ── Actual QR validation ───────────────────────────────────────────
+    # This checks whether the uploaded image contains a readable QR code.
     decoded_content = decode_qr_bytes(image_bytes)
 
     if not decoded_content:
@@ -2242,6 +2543,7 @@ async def analyze_qr_image(
             detail="No readable QR code found in the uploaded image."
         )
 
+    # ── Continue with existing CTDE QR pipeline ────────────────────────
     try:
         result = await _pipeline_qr(decoded_content)
 

@@ -8,6 +8,7 @@ import type {
 import {
   postAnalyze,
   postAnalyzeQr,
+  postAnalyzeApk,
   postAnalyzeEmailHeaders,
   mapBackendResponse,
   type BackendAnalysisResponse,
@@ -152,6 +153,46 @@ export async function runQrInvestigation(
     investigation,
     createTimeout(
       'QR investigation timed out. Please check that the CTDE backend is running and try again.'
+    ),
+  ]);
+
+  return buildInvestigationResult(backend);
+}
+/**
+ * Real APK forensic investigation.
+ *
+ * Sends the actual APK binary to:
+ * POST /analyze/apk
+ *
+ * The backend performs:
+ * - SHA-256 hashing
+ * - Android permission extraction
+ * - dangerous permission detection
+ * - activities
+ * - services
+ * - receivers
+ * - network URL extraction
+ * - signing certificate analysis
+ * - malware indicators
+ * - APK risk scoring
+ */
+export async function runApkInvestigation(
+  file: File
+): Promise<InvestigationResult> {
+  if (!file) {
+    throw new Error('Please select an APK file.');
+  }
+
+  if (!file.name.toLowerCase().endsWith('.apk')) {
+    throw new Error('Please select a valid .apk file.');
+  }
+
+  const investigation = postAnalyzeApk(file);
+
+  const backend = await Promise.race([
+    investigation,
+    createTimeout(
+      'APK investigation timed out. Please check that the CTDE backend is running and try again.'
     ),
   ]);
 

@@ -5,8 +5,7 @@ import type {
   ScoreBreakdown,
 } from '../types';
 
-export const API_BASE_URL = 'https://cyberverify-ai.onrender.com';
-
+const API_BASE_URL = 'http://127.0.0.1:8000';
 export class ApiError extends Error {
   status?: number;
 
@@ -526,6 +525,55 @@ export async function postAnalyzeQr(
 
   if (!response.ok) {
     let message = 'QR analysis failed.';
+
+    try {
+      const data = await response.json();
+
+      if (data?.detail) {
+        message =
+          typeof data.detail === 'string'
+            ? data.detail
+            : JSON.stringify(data.detail);
+      }
+    } catch {
+      // Keep default message.
+    }
+
+    throw new ApiError(message, response.status);
+  }
+
+  return response.json();
+}
+
+// ─────────────────────────────────────────────
+// APK FILE ANALYSIS
+// ─────────────────────────────────────────────
+
+export async function postAnalyzeApk(
+  file: File
+): Promise<BackendAnalysisResponse> {
+  const formData = new FormData();
+
+  formData.append('file', file);
+
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/analyze/apk`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+  } catch {
+    throw new ApiError(
+      'Unable to reach the CTDE analysis backend.'
+    );
+  }
+
+  if (!response.ok) {
+    let message = 'APK analysis failed.';
 
     try {
       const data = await response.json();

@@ -7,6 +7,7 @@ import {
   runInvestigation,
   runEmailHeaderInvestigation,
   runQrInvestigation,
+  runApkInvestigation,
   type InvestigationResult,
 } from '../services/investigationService';
 
@@ -139,6 +140,9 @@ export default function InvestigationPage({
   // REAL QR IMAGE FILE
   const [qrFile, setQrFile] = useState<File | null>(null);
 
+  // REAL APK FILE
+  const [apkFile, setApkFile] = useState<File | null>(null);
+
   const [analysis, setAnalysis] =
     useState<AnalysisResult | null>(null);
 
@@ -179,9 +183,18 @@ export default function InvestigationPage({
       return;
     }
 
+    // APK requires the actual APK binary.
+    if (
+      evidenceType === 'apk' &&
+      !apkFile
+    ) {
+      return;
+    }
+
     // All other evidence types require text input.
     if (
       evidenceType !== 'qr' &&
+      evidenceType !== 'apk' &&
       !evidenceValue.trim()
     ) {
       return;
@@ -285,8 +298,9 @@ const handleProgressComplete = (
     setEvidenceType(null);
     setEvidenceValue('');
 
-    // IMPORTANT: clear uploaded QR image
+    // IMPORTANT: clear uploaded files
     setQrFile(null);
+    setApkFile(null);
 
     setAnalysis(null);
     setEvidencePanel(null);
@@ -318,12 +332,18 @@ const handleProgressComplete = (
             setQrFile(null);
           }
 
+          if (type !== 'apk') {
+            setApkFile(null);
+          }
+
           setEvidenceValue('');
         }}
         evidenceValue={evidenceValue}
         setEvidenceValue={setEvidenceValue}
         qrFile={qrFile}
         setQrFile={setQrFile}
+        apkFile={apkFile}
+        setApkFile={setApkFile}
         onStart={handleStart}
       />
     );
@@ -335,6 +355,7 @@ const handleProgressComplete = (
         evidenceType={evidenceType!}
         evidenceValue={evidenceValue}
         qrFile={qrFile}
+        apkFile={apkFile}
         onComplete={handleProgressComplete}
         onReset={reset}
       />
@@ -382,6 +403,9 @@ function CreateStep(props: {
   qrFile: File | null;
   setQrFile: (file: File | null) => void;
 
+  apkFile: File | null;
+  setApkFile: (file: File | null) => void;
+
   onStart: () => void;
 }) {
   const selectedEvidence = EVIDENCE_TYPES.find(
@@ -405,6 +429,10 @@ function CreateStep(props: {
         ? Boolean(
             props.qrFile ||
             props.evidenceValue.trim()
+          )
+        : props.evidenceType === 'apk'
+        ? Boolean(
+            props.apkFile
           )
         : Boolean(
             props.evidenceValue.trim()
@@ -558,6 +586,72 @@ function CreateStep(props: {
             <label className="block text-xs font-mono text-gray-500 mb-1.5 uppercase tracking-wider">
               Evidence Value *
             </label>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                APK FILE INPUT
+            ═══════════════════════════════════════════════════════════════ */}
+
+            {props.evidenceType === 'apk' && (
+              <div className="space-y-3">
+
+                <label className="flex items-center gap-3 px-4 py-4 bg-[#0a0e14] border border-dashed border-gray-800 hover:border-cyan-500/40 rounded-xl cursor-pointer transition-all">
+
+                  <Upload className="w-5 h-5 text-cyan-400" />
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-300">
+                      Select APK file
+                    </p>
+
+                    <p className="text-xs text-gray-600 mt-1">
+                      Upload the actual .apk binary for forensic analysis
+                    </p>
+                  </div>
+
+                  <input
+                    type="file"
+                    accept=".apk,application/vnd.android.package-archive"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+
+                      if (!file) {
+                        return;
+                      }
+
+                      if (!file.name.toLowerCase().endsWith('.apk')) {
+                        alert('Please select a valid .apk file.');
+                        e.target.value = '';
+                        return;
+                      }
+
+                      props.setApkFile(file);
+                      props.setEvidenceValue(file.name);
+                    }}
+                  />
+
+                </label>
+
+                {props.apkFile && (
+                  <div className="flex items-center gap-3 px-4 py-3 bg-cyan-500/5 border border-cyan-500/20 rounded-lg">
+                    <Smartphone className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-300 truncate">
+                        {props.apkFile.name}
+                      </p>
+
+                      <p className="text-xs text-gray-600 mt-1">
+                        {(props.apkFile.size / (1024 * 1024)).toFixed(2)} MB • APK binary ready for analysis
+                      </p>
+                    </div>
+
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  </div>
+                )}
+
+              </div>
+            )}
 
             {/* ═══════════════════════════════════════════════════════════════
                 QR INPUT
@@ -723,7 +817,8 @@ Received-SPF: pass
 
 {/* Normal evidence input */}
 {props.evidenceType !== 'qr' &&
-  props.evidenceType !== 'email' && (
+  props.evidenceType !== 'email' &&
+  props.evidenceType !== 'apk' && (
     <input
       type="text"
       value={props.evidenceValue}
@@ -772,12 +867,14 @@ function ProgressStep({
   evidenceType,
   evidenceValue,
   qrFile,
+  apkFile,
   onComplete,
   onReset,
 }: {
   evidenceType: EvidenceType;
   evidenceValue: string;
   qrFile: File | null;
+  apkFile: File | null;
   onComplete: (result: InvestigationResult) => void;
   onReset: () => void;
 }) {
@@ -851,16 +948,18 @@ function ProgressStep({
      */
 
     const investigation =
-  evidenceType === 'qr' && qrFile
-    ? runQrInvestigation(qrFile)
-    : evidenceType === 'email'
-    ? runEmailHeaderInvestigation(
-        evidenceValue
-      )
-    : runInvestigation(
-        evidenceType,
-        evidenceValue
-      );
+      evidenceType === 'apk' && apkFile
+        ? runApkInvestigation(apkFile)
+        : evidenceType === 'qr' && qrFile
+        ? runQrInvestigation(qrFile)
+        : evidenceType === 'email'
+        ? runEmailHeaderInvestigation(
+            evidenceValue
+          )
+        : runInvestigation(
+            evidenceType,
+            evidenceValue
+          );
     investigation
       .then(result => {
 
@@ -890,6 +989,7 @@ function ProgressStep({
     evidenceType,
     evidenceValue,
     qrFile,
+    apkFile,
   ]);
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -980,7 +1080,9 @@ function ProgressStep({
           Analyzing evidence:{' '}
 
           <span className="font-mono text-cyan-400">
-            {evidenceType === 'qr' && qrFile
+            {evidenceType === 'apk' && apkFile
+              ? apkFile.name
+              : evidenceType === 'qr' && qrFile
               ? qrFile.name
               : evidenceValue}
           </span>

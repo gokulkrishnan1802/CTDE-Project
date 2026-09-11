@@ -81,15 +81,42 @@ class VerifyOTPRequest(BaseModel):
 # ── Investigation Request ─────────────────────────────────────────────────────
 
 class AnalyzeRequest(BaseModel):
-    evidenceType: str  # url | email | apk | qr | sender
+    evidenceType: str
     evidenceValue: str
 
-    @field_validator("evidenceType")
+    @field_validator("evidenceType", mode="before")
     @classmethod
     def validate_type(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("evidenceType must be a string")
+
+        v = v.strip().lower()
+
         allowed = {"url", "email", "apk", "qr", "sender"}
+
         if v not in allowed:
-            raise ValueError(f"evidenceType must be one of {allowed}")
+            raise ValueError(
+                f"evidenceType must be one of: {', '.join(sorted(allowed))}"
+            )
+
+        return v
+
+    @field_validator("evidenceValue")
+    @classmethod
+    def validate_value(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("evidenceValue must be a string")
+
+        v = v.strip()
+
+        if not v:
+            raise ValueError("evidenceValue cannot be empty")
+
+        if len(v) > 10000:
+            raise ValueError(
+                "evidenceValue is too large. Maximum length is 10000 characters."
+            )
+
         return v
 class EmailHeaderRequest(BaseModel):
     rawHeaders: str
