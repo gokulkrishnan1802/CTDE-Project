@@ -6,11 +6,10 @@ GET /reports/{id}/download — download PDF.
 """
 import logging
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-
 from auth import get_current_user
 from database import get_db
 from models import User, Investigation, Report
@@ -19,6 +18,7 @@ from services.report import generate_pdf_report, generate_json_report
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/reports", tags=["reports"])
+Session = Any
 
 
 @router.get("", response_model=list[dict])

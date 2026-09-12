@@ -10,9 +10,16 @@ import logging
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException, Depends, status ,UploadFile, File
+from fastapi import (  # pyright: ignore[reportMissingImports]
+    APIRouter,
+    HTTPException,
+    Depends,
+    status,
+    UploadFile,
+    File,
+)
 from services.qr_svc import decode_qr_bytes
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 
 from auth import get_optional_user
 from database import get_db

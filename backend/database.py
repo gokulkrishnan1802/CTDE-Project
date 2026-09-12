@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import create_engine  # type: ignore[reportMissingImports]
+from sqlalchemy.orm import DeclarativeBase, sessionmaker  # type: ignore[reportMissingImports]
 from config import settings
 
 connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}

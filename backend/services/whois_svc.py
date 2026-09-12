@@ -5,7 +5,12 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-import whois
+try:
+    from importlib import import_module
+
+    whois = import_module("whois")
+except ImportError:
+    whois = None
 
 from schemas import WhoisData
 from utils.helpers import domain_age_days
@@ -16,6 +21,8 @@ logger = logging.getLogger(__name__)
 def lookup_whois(domain: str) -> WhoisData:
     """Perform a real WHOIS lookup for the domain."""
     try:
+        if whois is None:
+            raise ImportError("python-whois is not installed")
         w = whois.whois(domain)
 
         registrar = _first_str(w.registrar) or "Unknown"

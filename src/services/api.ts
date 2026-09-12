@@ -5,7 +5,7 @@ import type {
   ScoreBreakdown,
 } from '../types';
 
-const API_BASE_URL = 'https://cyberverify-ai.onrender.com';
+const API_BASE_URL = 'http://127.0.0.1:8000';
 export class ApiError extends Error {
   status?: number;
 

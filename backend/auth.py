@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status  # type: ignore[reportMissingImports]
+from fastapi.security import OAuth2PasswordBearer  # type: ignore[reportMissingImports]
+from jose import JWTError, jwt  # type: ignore[reportMissingModuleSource]
+from sqlalchemy.orm import Session  # type: ignore[reportMissingImports]
 
 from config import settings
 from database import get_db

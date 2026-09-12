@@ -4,10 +4,8 @@ Collects A, AAAA, MX, TXT, NS, CNAME records.
 """
 
 import logging
+from importlib import import_module
 from typing import List
-
-import dns.resolver
-import dns.exception
 
 from schemas import DNSData
 
@@ -16,6 +14,14 @@ logger = logging.getLogger(__name__)
 
 # Maximum time allowed for each DNS query
 DNS_TIMEOUT = 3.0
+
+
+try:
+    _dns_resolver = import_module("dns.resolver")
+    _dns_exception = import_module("dns.exception")
+except ImportError:
+    _dns_resolver = None
+    _dns_exception = None
 
 
 def lookup_dns(domain: str) -> DNSData:
@@ -34,9 +40,13 @@ def lookup_dns(domain: str) -> DNSData:
 def _query(domain: str, record_type: str) -> List[str]:
     """Query a single DNS record type."""
 
+    if _dns_resolver is None:
+        logger.warning("dnspython is not installed; cannot query %s %s", domain, record_type)
+        return []
+
     try:
 
-        resolver = dns.resolver.Resolver()
+        resolver = _dns_resolver.Resolver()
 
         # Timeout for an individual nameserver attempt
         resolver.timeout = DNS_TIMEOUT
@@ -85,15 +95,15 @@ def _query(domain: str, record_type: str) -> List[str]:
 
         return results
 
-    except dns.resolver.NXDOMAIN:
+    except _dns_resolver.NXDOMAIN:
 
         return []
 
-    except dns.resolver.NoAnswer:
+    except _dns_resolver.NoAnswer:
 
         return []
 
-    except dns.resolver.NoNameservers:
+    except _dns_resolver.NoNameservers:
 
         logger.warning(
             "No DNS nameservers available for %s %s",
@@ -103,7 +113,7 @@ def _query(domain: str, record_type: str) -> List[str]:
 
         return []
 
-    except dns.exception.Timeout:
+    except _dns_exception.Timeout:
 
         logger.warning(
             "DNS timeout for %s %s",
