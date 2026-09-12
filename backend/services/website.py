@@ -2,7 +2,9 @@
 Website investigation service.
 Collects HTTP headers, redirects, security headers, and brand impersonation signals.
 """
+
 import re
+import ssl
 import logging
 from typing import Optional
 from urllib.parse import urlparse
@@ -16,6 +18,7 @@ from schemas import URLAnalysisData, BrandData
 
 logger = logging.getLogger(__name__)
 
+
 SECURITY_HEADERS = [
     "strict-transport-security",
     "content-security-policy",
@@ -26,10 +29,28 @@ SECURITY_HEADERS = [
     "permissions-policy",
 ]
 
+
 KNOWN_BRANDS = [
-    "paypal", "amazon", "apple", "microsoft", "google", "facebook", "instagram",
-    "netflix", "bank", "chase", "wellsfargo", "citibank", "hdfc", "icici",
-    "sbi", "axis", "twitter", "linkedin", "dropbox", "adobe",
+    "paypal",
+    "amazon",
+    "apple",
+    "microsoft",
+    "google",
+    "facebook",
+    "instagram",
+    "netflix",
+    "bank",
+    "chase",
+    "wellsfargo",
+    "citibank",
+    "hdfc",
+    "icici",
+    "sbi",
+    "axis",
+    "twitter",
+    "linkedin",
+    "dropbox",
+    "adobe",
 ]
 
 
@@ -38,15 +59,32 @@ async def investigate_website(url: str) -> dict:
     Perform comprehensive website investigation.
     Returns structured evidence for all analysis modules.
     """
+
     url = normalize_url(url.strip())
+
     parsed = urlparse(url)
+
     domain = parsed.hostname or ""
+
     sha = sha256_of_string(url)
 
-    headers_result, status_code, redirect_chain, final_url, response_headers = await _fetch_http(url)
-    url_analysis = _analyze_url(url, redirect_chain)
-    security_headers = _check_security_headers(response_headers)
-    brand = _detect_brand_impersonation(domain)
+    headers_result, status_code, redirect_chain, final_url, response_headers = (
+        await _fetch_http(url)
+    )
+
+    url_analysis = _analyze_url(
+        url,
+        redirect_chain,
+    )
+
+    security_headers = _check_security_headers(
+        response_headers
+    )
+
+    brand = _detect_brand_impersonation(
+        domain
+    )
+
     https_status = url.startswith("https://")
 
     return {
@@ -65,43 +103,136 @@ async def investigate_website(url: str) -> dict:
     }
 
 
-async def _fetch_http(url: str) -> tuple[str, Optional[int], list[str], str, dict]:
-    """Fetch URL and collect redirect chain and response headers."""
+async def _fetch_http(
+    url: str,
+) -> tuple[str, Optional[int], list[str], str, dict]:
+    """
+    Fetch URL and collect redirect chain and response headers.
+    """
+
     try:
+
         async with httpx.AsyncClient(
             follow_redirects=True,
             max_redirects=settings.HTTP_MAX_REDIRECTS,
             timeout=settings.HTTP_TIMEOUT,
-            headers={"User-Agent": "Mozilla/5.0 (CTDE Security Scanner/1.0)"},
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 "
+                    "(CTDE Security Scanner/1.0)"
+                )
+            },
             verify=True,
         ) as client:
+
             resp = await client.get(url)
-            chain = [str(r.url) for r in resp.history]
+
+            chain = [
+                str(r.url)
+                for r in resp.history
+            ]
+
             headers = dict(resp.headers)
-            return "OK", resp.status_code, chain, str(resp.url), headers
-    except httpx.SSLError:
-        return "SSL verification failed", None, [], url, {}
+
+            return (
+                "OK",
+                resp.status_code,
+                chain,
+                str(resp.url),
+                headers,
+            )
+
+    # IMPORTANT:
+    # httpx does NOT expose SSLError as httpx.SSLError.
+    # Python's ssl module provides SSLError.
+    except ssl.SSLError:
+
+        return (
+            "SSL verification failed",
+            None,
+            [],
+            url,
+            {},
+        )
+
     except httpx.ConnectError:
-        return "Connection refused or host unreachable", None, [], url, {}
+
+        return (
+            "Connection refused or host unreachable",
+            None,
+            [],
+            url,
+            {},
+        )
+
     except httpx.TimeoutException:
-        return "Request timed out", None, [], url, {}
+
+        return (
+            "Request timed out",
+            None,
+            [],
+            url,
+            {},
+        )
+
     except Exception as exc:
-        return str(exc), None, [], url, {}
+
+        logger.warning(
+            "HTTP investigation failed for %s: %s",
+            url,
+            exc,
+        )
+
+        return (
+            str(exc),
+            None,
+            [],
+            url,
+            {},
+        )
 
 
-def _analyze_url(url: str, redirects: list[str]) -> URLAnalysisData:
+def _analyze_url(
+    url: str,
+    redirects: list[str],
+) -> URLAnalysisData:
+
     parsed = urlparse(url)
+
     domain = parsed.hostname or ""
 
     # Detect encoded characters
-    encoded = bool(re.search(r"%[0-9A-Fa-f]{2}", url))
+    encoded = bool(
+        re.search(
+            r"%[0-9A-Fa-f]{2}",
+            url,
+        )
+    )
 
     # Suspicious query parameters
     suspicious_params = []
+
     if parsed.query:
+
         for param in parsed.query.split("&"):
-            key = param.split("=")[0].lower()
-            if key in {"redirect", "url", "next", "goto", "return", "redir", "target", "dest"}:
+
+            key = (
+                param
+                .split("=")[0]
+                .lower()
+            )
+
+            if key in {
+                "redirect",
+                "url",
+                "next",
+                "goto",
+                "return",
+                "redir",
+                "target",
+                "dest",
+            }:
+
                 suspicious_params.append(key)
 
     return URLAnalysisData(
@@ -114,54 +245,130 @@ def _analyze_url(url: str, redirects: list[str]) -> URLAnalysisData:
     )
 
 
-def _check_security_headers(headers: dict) -> dict:
+def _check_security_headers(
+    headers: dict,
+) -> dict:
+
     return {
-        h: headers.get(h, "MISSING")
+        h: headers.get(
+            h,
+            "MISSING",
+        )
         for h in SECURITY_HEADERS
     }
 
 
-def _detect_brand_impersonation(domain: str) -> BrandData:
+def _detect_brand_impersonation(
+    domain: str,
+) -> BrandData:
+
     """
     Heuristic brand impersonation detection.
-    Checks if domain contains known brand names but doesn't belong to them.
+
+    Checks if domain contains known brand names
+    but doesn't belong to them.
     """
+
     domain_lower = domain.lower()
+
     # Remove TLD for matching
-    domain_core = ".".join(domain_lower.split(".")[:-1]) if "." in domain_lower else domain_lower
+    domain_core = (
+        ".".join(
+            domain_lower.split(".")[:-1]
+        )
+        if "." in domain_lower
+        else domain_lower
+    )
 
     for brand in KNOWN_BRANDS:
+
         if brand in domain_core:
-            # Check if it IS the official domain (exact TLD match)
+
+            # Check if it IS the official domain
             official_domains = {
-                "paypal": "paypal.com", "amazon": "amazon.com", "apple": "apple.com",
-                "microsoft": "microsoft.com", "google": "google.com", "facebook": "facebook.com",
-                "instagram": "instagram.com", "netflix": "netflix.com",
+
+                "paypal": "paypal.com",
+
+                "amazon": "amazon.com",
+
+                "apple": "apple.com",
+
+                "microsoft": "microsoft.com",
+
+                "google": "google.com",
+
+                "facebook": "facebook.com",
+
+                "instagram": "instagram.com",
+
+                "netflix": "netflix.com",
             }
-            official = official_domains.get(brand, f"{brand}.com")
-            if domain_lower == official or domain_lower.endswith(f".{official}"):
+
+            official = official_domains.get(
+                brand,
+                f"{brand}.com",
+            )
+
+            if (
+                domain_lower == official
+                or domain_lower.endswith(
+                    f".{official}"
+                )
+            ):
+
                 # It IS the legitimate brand domain
                 return BrandData(
                     brandName=brand.capitalize(),
                     confidence=5.0,
-                    evidence=f"Domain matches official {brand} domain",
+                    evidence=(
+                        f"Domain matches official "
+                        f"{brand} domain"
+                    ),
                     visualSimilarity=1.0,
                     domainSimilarity=1.0,
                 )
-            # It contains the brand name but isn't the official domain
-            similarity = len(brand) / len(domain_core) * 100
+
+            # It contains the brand name but
+            # isn't the official domain
+
+            similarity = (
+                len(brand)
+                / len(domain_core)
+                * 100
+            )
+
             return BrandData(
                 brandName=brand.capitalize(),
-                confidence=min(70 + similarity, 95),
-                evidence=f"Domain '{domain}' contains brand name '{brand}' but is not the official domain '{official}'",
-                visualSimilarity=round(similarity / 100, 2),
-                domainSimilarity=round(similarity / 100, 2),
+
+                confidence=min(
+                    70 + similarity,
+                    95,
+                ),
+
+                evidence=(
+                    f"Domain '{domain}' contains "
+                    f"brand name '{brand}' but is "
+                    f"not the official domain "
+                    f"'{official}'"
+                ),
+
+                visualSimilarity=round(
+                    similarity / 100,
+                    2,
+                ),
+
+                domainSimilarity=round(
+                    similarity / 100,
+                    2,
+                ),
             )
 
     return BrandData(
         brandName="None",
         confidence=0.0,
-        evidence="No known brand impersonation detected",
+        evidence=(
+            "No known brand impersonation detected"
+        ),
         visualSimilarity=0.0,
         domainSimilarity=0.0,
     )

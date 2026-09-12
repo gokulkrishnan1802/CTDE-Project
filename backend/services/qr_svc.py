@@ -32,15 +32,13 @@ logger = logging.getLogger(__name__)
 
 def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
     """
-    Decode a QR code from raw image bytes.
+    Robust QR decoder.
 
     Decoder order:
         1. pyzbar / ZBar
         2. OpenCV QRCodeDetector
-
-    OpenCV also tries multiple preprocessing methods so that QR images
-    containing logos, compression, scaling, or mild image noise have
-    a better chance of decoding.
+        3. Multiple preprocessing techniques
+        4. Scaling, padding, thresholding, inversion and rotation
     """
 
     if not image_bytes:
@@ -48,19 +46,15 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
         return None
 
     # ──────────────────────────────────────────────────────────────────────
-    # METHOD 1: pyzbar / ZBar
+    # Helper: decode using pyzbar
     # ──────────────────────────────────────────────────────────────────────
 
-    try:
-        from PIL import Image
-        from pyzbar.pyzbar import decode
+    def try_pyzbar(image):
+        try:
+            from pyzbar.pyzbar import decode
 
-        image = Image.open(io.BytesIO(image_bytes))
+            decoded = decode(image)
 
-        # Normal image
-        decoded = decode(image)
-
-        if decoded:
             for result in decoded:
                 try:
                     data = result.data.decode("utf-8").strip()
@@ -73,36 +67,50 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
                         return data
 
                 except UnicodeDecodeError:
-                    logger.warning(
-                        "QR payload was not valid UTF-8"
-                    )
+                    continue
 
-        # Try grayscale image
+        except Exception as exc:
+            logger.debug("pyzbar attempt failed: %s", exc)
+
+        return None
+
+    # ──────────────────────────────────────────────────────────────────────
+    # METHOD 1: pyzbar / ZBar
+    # ──────────────────────────────────────────────────────────────────────
+
+    try:
+        from PIL import Image
+
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # Normal image
+        result = try_pyzbar(image)
+
+        if result:
+            return result
+
+        # Grayscale
         grayscale = image.convert("L")
-        decoded = decode(grayscale)
 
-        if decoded:
-            for result in decoded:
-                try:
-                    data = result.data.decode("utf-8").strip()
+        result = try_pyzbar(grayscale)
 
-                    if data:
-                        logger.info(
-                            "QR decoded successfully using pyzbar "
-                            "grayscale: %s",
-                            data,
-                        )
-                        return data
+        if result:
+            return result
 
-                except UnicodeDecodeError:
-                    logger.warning(
-                        "QR grayscale payload was not valid UTF-8"
-                    )
+        # Enlarged image
+        enlarged = image.resize(
+            (image.width * 2, image.height * 2),
+            Image.Resampling.LANCZOS,
+        )
+
+        result = try_pyzbar(enlarged)
+
+        if result:
+            return result
 
     except ImportError:
         logger.warning(
-            "pyzbar/Pillow unavailable. "
-            "Falling back to OpenCV."
+            "pyzbar/Pillow unavailable. Falling back to OpenCV."
         )
 
     except Exception as exc:
@@ -113,7 +121,7 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
         )
 
     # ──────────────────────────────────────────────────────────────────────
-    # METHOD 2: OpenCV fallback
+    # METHOD 2: OpenCV
     # ──────────────────────────────────────────────────────────────────────
 
     try:
@@ -138,60 +146,105 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
 
         detector = cv2.QRCodeDetector()
 
-        # Store different versions of the image.
         images_to_try = []
 
-        # 1. Original
+        # ──────────────────────────────────────────────────────────────
+        # Original
+        # ──────────────────────────────────────────────────────────────
+
         images_to_try.append(image)
 
-        # 2. Grayscale
+        # ──────────────────────────────────────────────────────────────
+        # Grayscale
+        # ──────────────────────────────────────────────────────────────
+
         gray = cv2.cvtColor(
             image,
             cv2.COLOR_BGR2GRAY,
         )
+
         images_to_try.append(gray)
 
-        # 3. 2x enlarged original
-        enlarged = cv2.resize(
-            image,
-            None,
-            fx=2,
-            fy=2,
-            interpolation=cv2.INTER_CUBIC,
-        )
-        images_to_try.append(enlarged)
+        # ──────────────────────────────────────────────────────────────
+        # 2x, 3x and 4x enlargement
+        # ──────────────────────────────────────────────────────────────
 
-        # 4. 2x enlarged grayscale
-        enlarged_gray = cv2.resize(
-            gray,
-            None,
-            fx=2,
-            fy=2,
-            interpolation=cv2.INTER_CUBIC,
-        )
-        images_to_try.append(enlarged_gray)
+        for scale in [2, 3, 4]:
 
-        # 5. OTSU threshold
+            enlarged = cv2.resize(
+                image,
+                None,
+                fx=scale,
+                fy=scale,
+                interpolation=cv2.INTER_CUBIC,
+            )
+
+            images_to_try.append(enlarged)
+
+            enlarged_gray = cv2.cvtColor(
+                enlarged,
+                cv2.COLOR_BGR2GRAY,
+            )
+
+            images_to_try.append(enlarged_gray)
+
+        # ──────────────────────────────────────────────────────────────
+        # Padding / quiet zone
+        # ──────────────────────────────────────────────────────────────
+
+        for border in [10, 20, 40]:
+
+            padded = cv2.copyMakeBorder(
+                gray,
+                border,
+                border,
+                border,
+                border,
+                cv2.BORDER_CONSTANT,
+                value=255,
+            )
+
+            images_to_try.append(padded)
+
+        # ──────────────────────────────────────────────────────────────
+        # OTSU threshold
+        # ──────────────────────────────────────────────────────────────
+
         _, otsu = cv2.threshold(
             gray,
             0,
             255,
             cv2.THRESH_BINARY + cv2.THRESH_OTSU,
         )
+
         images_to_try.append(otsu)
 
-        # 6. Adaptive threshold
-        adaptive = cv2.adaptiveThreshold(
-            gray,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            31,
-            5,
-        )
-        images_to_try.append(adaptive)
+        # Inverted OTSU
+        otsu_inverted = cv2.bitwise_not(otsu)
 
-        # 7. Sharpened grayscale
+        images_to_try.append(otsu_inverted)
+
+        # ──────────────────────────────────────────────────────────────
+        # Adaptive threshold
+        # ──────────────────────────────────────────────────────────────
+
+        for block_size in [21, 31, 51]:
+
+            adaptive = cv2.adaptiveThreshold(
+                gray,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                block_size,
+                5,
+            )
+
+            images_to_try.append(adaptive)
+
+        # ──────────────────────────────────────────────────────────────
+        # Sharpening
+        # ──────────────────────────────────────────────────────────────
+
         blurred = cv2.GaussianBlur(
             gray,
             (0, 0),
@@ -208,15 +261,23 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
 
         images_to_try.append(sharpened)
 
-        # Try every image version
-        for index, candidate in enumerate(images_to_try, start=1):
+        # ──────────────────────────────────────────────────────────────
+        # Try every candidate image
+        # ──────────────────────────────────────────────────────────────
+
+        for index, candidate in enumerate(
+            images_to_try,
+            start=1,
+        ):
 
             try:
+
                 data, points, _ = detector.detectAndDecode(
                     candidate
                 )
 
                 if data and data.strip():
+
                     decoded = data.strip()
 
                     logger.info(
@@ -229,18 +290,78 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
                     return decoded
 
             except Exception as exc:
+
                 logger.debug(
-                    "OpenCV QR attempt %s failed: %s",
+                    "OpenCV attempt %s failed: %s",
                     index,
                     exc,
                 )
 
-        # Try OpenCV's multi-code detector if available
+        # ──────────────────────────────────────────────────────────────
+        # Rotation attempts
+        # ──────────────────────────────────────────────────────────────
+
+        height, width = gray.shape[:2]
+
+        center = (
+            width // 2,
+            height // 2,
+        )
+
+        for angle in [-10, -5, 5, 10]:
+
+            try:
+
+                matrix = cv2.getRotationMatrix2D(
+                    center,
+                    angle,
+                    1.0,
+                )
+
+                rotated = cv2.warpAffine(
+                    gray,
+                    matrix,
+                    (width, height),
+                    borderMode=cv2.BORDER_CONSTANT,
+                    borderValue=255,
+                )
+
+                data, points, _ = detector.detectAndDecode(
+                    rotated
+                )
+
+                if data and data.strip():
+
+                    decoded = data.strip()
+
+                    logger.info(
+                        "QR decoded successfully using "
+                        "rotation %s degrees: %s",
+                        angle,
+                        decoded,
+                    )
+
+                    return decoded
+
+            except Exception as exc:
+
+                logger.debug(
+                    "QR rotation %s failed: %s",
+                    angle,
+                    exc,
+                )
+
+        # ──────────────────────────────────────────────────────────────
+        # OpenCV multi-code detector
+        # ──────────────────────────────────────────────────────────────
+
         try:
+
             if hasattr(
                 detector,
                 "detectAndDecodeMulti",
             ):
+
                 success, decoded_info, points, _ = (
                     detector.detectAndDecodeMulti(image)
                 )
@@ -250,6 +371,7 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
                     for data in decoded_info:
 
                         if data and data.strip():
+
                             decoded = data.strip()
 
                             logger.info(
@@ -261,29 +383,35 @@ def decode_qr_bytes(image_bytes: bytes) -> Optional[str]:
                             return decoded
 
         except Exception as exc:
+
             logger.debug(
                 "OpenCV multi-code detection failed: %s",
                 exc,
             )
 
     except ImportError:
+
         logger.error(
             "OpenCV/numpy is not installed. "
             "Run: pip install opencv-python numpy"
         )
 
     except Exception as exc:
+
         logger.exception(
             "OpenCV QR decoding failed: %s",
             exc,
         )
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Nothing worked
+    # ──────────────────────────────────────────────────────────────────────
 
     logger.warning(
         "QR image was processed but no readable QR code was detected"
     )
 
     return None
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # QR INVESTIGATION
