@@ -69,56 +69,56 @@ const EVIDENCE_TYPES: {
 }[] = [
   {
     type: 'url',
-    label: 'Website / URL',
+    label: 'Website / Link',
     icon: Globe,
-    desc: 'Analyze a website or URL for threats',
-    placeholder: 'https://example.com',
+    desc: 'Check whether a website or link looks safe',
+    placeholder: 'Paste the website link here',
   },
   {
-  type: 'email',
-  label: 'Email Headers',
-  icon: Mail,
-  desc: 'Perform forensic analysis of raw email headers',
-  placeholder: 'Paste raw email headers here...',
-},
+    type: 'email',
+    label: 'Email / Message',
+    icon: Mail,
+    desc: 'Check whether an email message may be fake or suspicious',
+    placeholder: 'Paste the email headers here',
+  },
   {
     type: 'apk',
-    label: 'APK File',
+    label: 'Android App',
     icon: Smartphone,
-    desc: 'Analyze Android app permissions',
-    placeholder: 'com.example.app.apk',
+    desc: 'Check an Android APK file for suspicious permissions and activity',
+    placeholder: 'Select an APK file',
   },
   {
     type: 'qr',
     label: 'QR Code',
     icon: QrCode,
-    desc: 'Decode and verify a QR code',
-    placeholder: 'QR code content or URL',
+    desc: 'Check where a QR code leads before you open it',
+    placeholder: 'Upload a QR image or paste its content',
   },
   {
     type: 'sender',
-    label: 'Sender Identity',
+    label: 'Sender / SMS',
     icon: Send,
-    desc: 'Verify email senders, SMS sender IDs, or messaging identities',
-    placeholder: 'support@example.com or VK-HDFCBK or Amazon',
+    desc: 'Check whether a sender, SMS ID or messaging identity looks genuine',
+    placeholder: 'Enter the sender name or number',
   },
 ];
 
 const PROGRESS_STEPS = [
-  'Collecting Digital Evidence',
-  'Identity Verification',
-  'Domain Verification',
-  'Certificate Validation',
-  'WHOIS Lookup',
-  'Brand Analysis',
-  'URL Reputation',
-  'APK Permission Analysis',
-  'QR Destination Analysis',
-  'Sender Verification',
-  'MITRE Mapping',
-  'AI Summary Generation',
-  'Generating Digital Trust Score',
-  'Generating Investigation Report',
+  'Preparing your check',
+  'Checking identity',
+  'Checking website details',
+  'Checking security certificate',
+  'Checking website registration',
+  'Checking for fake branding',
+  'Checking website reputation',
+  'Checking app permissions',
+  'Checking QR destination',
+  'Checking sender',
+  'Analyzing security signals',
+  'Preparing simple explanation',
+  'Preparing safety result',
+  'Preparing report',
 ];
 
 export default function InvestigationPage({
@@ -168,8 +168,18 @@ export default function InvestigationPage({
   // ──────────────────────────────────────────────────────────────────────────
 
   const handleStart = () => {
-    if (!caseName.trim() || !evidenceType) {
+    if (!evidenceType) {
       return;
+    }
+
+    // Public-user mode: case names are generated automatically so the
+    // user does not have to understand forensic case management.
+    if (!caseName.trim()) {
+      const selectedLabel =
+        EVIDENCE_TYPES.find(e => e.type === evidenceType)?.label ||
+        'Security Check';
+
+      setCaseName(`${selectedLabel} Check`);
     }
 
     // QR can start with either:
@@ -412,36 +422,19 @@ function CreateStep(props: {
     e => e.type === props.evidenceType
   );
 
-  const [qrDecoding] =
-    useState(false);
-
-  const [qrDecoded, setQrDecoded] =
-    useState(false);
-
-  const [qrError, setQrError] =
-    useState<string | null>(null);
+  const [qrDecoding] = useState(false);
+  const [qrDecoded, setQrDecoded] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   const canStart =
-    Boolean(props.caseName.trim()) &&
     Boolean(props.evidenceType) &&
     (
       props.evidenceType === 'qr'
-        ? Boolean(
-            props.qrFile ||
-            props.evidenceValue.trim()
-          )
+        ? Boolean(props.qrFile || props.evidenceValue.trim())
         : props.evidenceType === 'apk'
-        ? Boolean(
-            props.apkFile
-          )
-        : Boolean(
-            props.evidenceValue.trim()
-          )
+        ? Boolean(props.apkFile)
+        : Boolean(props.evidenceValue.trim())
     );
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // REAL QR FILE SELECTION
-  // ──────────────────────────────────────────────────────────────────────────
 
   const handleQrFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>
@@ -456,403 +449,305 @@ function CreateStep(props: {
     setQrDecoded(false);
 
     if (!file.type.startsWith('image/')) {
-      setQrError(
-        'Please select a valid QR image file.'
-      );
-
+      setQrError('Please choose a valid QR image.');
       e.target.value = '';
       return;
     }
 
-    // Store the REAL image file.
     props.setQrFile(file);
-
-    // Clear manual QR content.
     props.setEvidenceValue('');
-
-    /*
-     * IMPORTANT:
-     *
-     * No fake URL is generated here.
-     *
-     * The actual image is sent to:
-     *
-     * POST /analyze/qr
-     *
-     * when Start Investigation is clicked.
-     */
     setQrDecoded(true);
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
 
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-100">
-          Create Investigation
+      {/* ============================================================
+          SIMPLE PUBLIC-USER HEADER
+      ============================================================ */}
+      <div className="text-center max-w-2xl mx-auto">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/5 border border-cyan-500/10 mb-4">
+          <ShieldCheck className="w-4 h-4 text-cyan-400" />
+          <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider">
+            CyberVerify AI
+          </span>
+        </div>
+
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-100">
+          Is it safe?
         </h2>
 
-        <p className="text-sm text-gray-500 mt-1">
-          Start a new digital forensics investigation
+        <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+          Choose what you want to check. We will analyze it and explain the
+          result in simple language.
         </p>
       </div>
 
+      {/* ============================================================
+          STEP INDICATOR
+      ============================================================ */}
       <StepIndicator current={0} />
 
-      {/* Case Information */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6 space-y-4">
+      {/* ============================================================
+          CHOOSE WHAT TO CHECK
+      ============================================================ */}
+      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-5 sm:p-6">
 
-        <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-          <FileText className="w-4 h-4 text-cyan-400" />
-          Case Information
-        </h3>
+        <div className="mb-5">
+          <h3 className="text-base font-semibold text-gray-200 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-cyan-400" />
+            What do you want to check?
+          </h3>
 
-        <div>
-          <label className="block text-xs font-mono text-gray-500 mb-1.5 uppercase tracking-wider">
-            Case Name *
-          </label>
-
-          <input
-            type="text"
-            value={props.caseName}
-            onChange={e =>
-              props.setCaseName(e.target.value)
-            }
-            className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
-            placeholder="e.g. Suspicious QR Code Investigation"
-          />
+          <p className="text-xs text-gray-600 mt-1.5">
+            Select one option below. You do not need to know any technical terms.
+          </p>
         </div>
 
-        <div>
-          <label className="block text-xs font-mono text-gray-500 mb-1.5 uppercase tracking-wider">
-            Case Description
-          </label>
-
-          <textarea
-            value={props.caseDescription}
-            onChange={e =>
-              props.setCaseDescription(e.target.value)
-            }
-            rows={3}
-            className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all resize-none"
-            placeholder="Describe the context of this investigation..."
-          />
-        </div>
-      </div>
-
-      {/* Evidence Type */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6 space-y-4">
-
-        <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-cyan-400" />
-          Choose Evidence Type
-        </h3>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {EVIDENCE_TYPES.map(e => {
             const Icon = e.icon;
-
-            const active =
-              props.evidenceType === e.type;
+            const active = props.evidenceType === e.type;
 
             return (
               <button
                 key={e.type}
-                onClick={() =>
-                  props.setEvidenceType(e.type)
-                }
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
+                onClick={() => props.setEvidenceType(e.type)}
+                className={`text-left p-4 rounded-xl border transition-all duration-200 group ${
                   active
-                    ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400 glow-cyan'
-                    : 'bg-[#0a0e14] border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-300'
+                    ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.06)]'
+                    : 'bg-[#0a0e14] border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
                 }`}
               >
-                <Icon className="w-6 h-6" />
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <Icon className="w-6 h-6" />
 
-                <span className="text-xs font-medium">
+                  {active && (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  )}
+                </div>
+
+                <span className="block text-sm font-semibold">
                   {e.label}
+                </span>
+
+                <span className="block text-[11px] text-gray-600 group-hover:text-gray-500 mt-1.5 leading-relaxed">
+                  {e.desc}
                 </span>
               </button>
             );
           })}
-
         </div>
+      </div>
 
-        {selectedEvidence && (
-          <div className="animate-fadeIn space-y-3">
+      {/* ============================================================
+          INPUT
+      ============================================================ */}
+      {selectedEvidence && (
+        <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-5 sm:p-6 space-y-4 animate-fadeIn">
 
-            <label className="block text-xs font-mono text-gray-500 mb-1.5 uppercase tracking-wider">
-              Evidence Value *
-            </label>
+          <div>
+            <h3 className="text-base font-semibold text-gray-200">
+              {selectedEvidence.label}
+            </h3>
 
-            {/* ═══════════════════════════════════════════════════════════════
-                APK FILE INPUT
-            ═══════════════════════════════════════════════════════════════ */}
+            <p className="text-xs text-gray-600 mt-1">
+              {selectedEvidence.desc}
+            </p>
+          </div>
 
-            {props.evidenceType === 'apk' && (
-              <div className="space-y-3">
-
-                <label className="flex items-center gap-3 px-4 py-4 bg-[#0a0e14] border border-dashed border-gray-800 hover:border-cyan-500/40 rounded-xl cursor-pointer transition-all">
-
+          {/* APK */}
+          {props.evidenceType === 'apk' && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 px-4 py-5 bg-[#0a0e14] border border-dashed border-gray-800 hover:border-cyan-500/40 rounded-xl cursor-pointer transition-all">
+                <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
                   <Upload className="w-5 h-5 text-cyan-400" />
+                </div>
 
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-300">
-                      Select APK file
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-300">
+                    Choose Android app file
+                  </p>
+
+                  <p className="text-xs text-gray-600 mt-1">
+                    Select the .apk file you want to check.
+                  </p>
+                </div>
+
+                <input
+                  type="file"
+                  accept=".apk,application/vnd.android.package-archive"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+
+                    if (!file) {
+                      return;
+                    }
+
+                    if (!file.name.toLowerCase().endsWith('.apk')) {
+                      alert('Please choose a valid Android APK file.');
+                      e.target.value = '';
+                      return;
+                    }
+
+                    props.setApkFile(file);
+                    props.setEvidenceValue(file.name);
+                  }}
+                />
+              </label>
+
+              {props.apkFile && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-300 truncate">
+                      {props.apkFile.name}
                     </p>
 
                     <p className="text-xs text-gray-600 mt-1">
-                      Upload the actual .apk binary for forensic analysis
+                      {(props.apkFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to check
                     </p>
                   </div>
+                </div>
+              )}
+            </div>
+          )}
 
-                  <input
-                    type="file"
-                    accept=".apk,application/vnd.android.package-archive"
-                    className="hidden"
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-
-                      if (!file) {
-                        return;
-                      }
-
-                      if (!file.name.toLowerCase().endsWith('.apk')) {
-                        alert('Please select a valid .apk file.');
-                        e.target.value = '';
-                        return;
-                      }
-
-                      props.setApkFile(file);
-                      props.setEvidenceValue(file.name);
-                    }}
-                  />
-
-                </label>
-
-                {props.apkFile && (
-                  <div className="flex items-center gap-3 px-4 py-3 bg-cyan-500/5 border border-cyan-500/20 rounded-lg">
-                    <Smartphone className="w-5 h-5 text-cyan-400 flex-shrink-0" />
-
-                    <div className="min-w-0">
-                      <p className="text-sm text-gray-300 truncate">
-                        {props.apkFile.name}
-                      </p>
-
-                      <p className="text-xs text-gray-600 mt-1">
-                        {(props.apkFile.size / (1024 * 1024)).toFixed(2)} MB • APK binary ready for analysis
-                      </p>
-                    </div>
-
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  </div>
-                )}
-
-              </div>
-            )}
-
-            {/* ═══════════════════════════════════════════════════════════════
-                QR INPUT
-            ═══════════════════════════════════════════════════════════════ */}
-
-            {props.evidenceType === 'qr' && (
-              <div className="space-y-3">
-
-                {/* Upload */}
-                <div className="flex flex-wrap items-center gap-3">
-
-                  <label className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0e14] border border-gray-800 hover:border-cyan-500/30 rounded-lg cursor-pointer transition-all text-sm text-gray-400 hover:text-cyan-400">
-
-                    {qrDecoding ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    )}
-
-                    <span>
-                      {qrDecoding
-                        ? 'Processing QR...'
-                        : 'Upload QR Image'}
-                    </span>
-
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg,image/webp"
-                      className="hidden"
-                      onChange={handleQrFileUpload}
-                      disabled={qrDecoding}
-                    />
-
-                  </label>
-
-                  {props.qrFile && (
-                    <span className="text-xs text-gray-400 font-mono">
-                      {props.qrFile.name}
-                    </span>
+          {/* QR */}
+          {props.evidenceType === 'qr' && (
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 px-4 py-5 bg-[#0a0e14] border border-dashed border-gray-800 hover:border-cyan-500/40 rounded-xl cursor-pointer transition-all">
+                <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
+                  {qrDecoding ? (
+                    <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                  ) : (
+                    <QrCode className="w-5 h-5 text-cyan-400" />
                   )}
-
-                  {qrDecoded && props.qrFile && (
-                    <span className="flex items-center gap-1.5 text-xs text-emerald-400 animate-fadeIn">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      QR image ready for analysis.
-                    </span>
-                  )}
-
                 </div>
 
-                {/* QR Error */}
-                {qrError && (
-                  <div className="flex items-center gap-2 text-xs text-red-400">
-                    <AlertTriangle className="w-4 h-4" />
-                    {qrError}
-                  </div>
-                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-300">
+                    Upload a QR code image
+                  </p>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-gray-800" />
-
-                  <span className="text-xs text-gray-600 font-mono">
-                    OR
-                  </span>
-
-                  <div className="flex-1 h-px bg-gray-800" />
+                  <p className="text-xs text-gray-600 mt-1">
+                    We will read the QR code and check where it leads.
+                  </p>
                 </div>
 
-                {/* Manual QR content */}
-                <div className="relative">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={handleQrFileUpload}
+                  disabled={qrDecoding}
+                />
+              </label>
 
-                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-
-                  <input
-                    type="text"
-                    value={props.evidenceValue}
-                    onChange={e => {
-                      props.setEvidenceValue(
-                        e.target.value
-                      );
-
-                      // Manual content means we don't need
-                      // the previously selected image.
-                      props.setQrFile(null);
-
-                      setQrDecoded(false);
-                      setQrError(null);
-                    }}
-                    className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono"
-                    placeholder="Paste QR content or URL"
-                  />
-
+              {props.qrFile && (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  {props.qrFile.name} is ready to check.
                 </div>
+              )}
 
+              {qrError && (
+                <div className="flex items-center gap-2 text-xs text-red-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  {qrError}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-gray-800" />
+                <span className="text-xs text-gray-600">OR</span>
+                <div className="flex-1 h-px bg-gray-800" />
               </div>
+
+              <input
+                type="text"
+                value={props.evidenceValue}
+                onChange={e => {
+                  props.setEvidenceValue(e.target.value);
+                  props.setQrFile(null);
+                  setQrDecoded(false);
+                  setQrError(null);
+                }}
+                className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                placeholder="Or paste the QR link here"
+              />
+            </div>
+          )}
+
+          {/* Email */}
+          {props.evidenceType === 'email' && (
+            <div className="space-y-3">
+              <textarea
+                value={props.evidenceValue}
+                onChange={e => props.setEvidenceValue(e.target.value)}
+                rows={12}
+                spellCheck={false}
+                className="w-full bg-[#080c12] border border-gray-800 rounded-xl px-4 py-3 text-xs text-gray-300 placeholder-gray-700 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono leading-relaxed resize-y"
+                placeholder={`Paste the email headers here.\n\nIf you do not know what email headers are, open the suspicious email and use your email service's option to view the original message or headers.`}
+              />
+
+              <div className="flex items-start gap-2 px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/10 rounded-lg">
+                <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  We check sender details, authentication results and signs of spoofing.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Sender */}
+          {props.evidenceType === 'sender' && (
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={props.evidenceValue}
+                onChange={e => props.setEvidenceValue(e.target.value)}
+                className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                placeholder="Example: Amazon, VK-HDFCBK, +91 98765 43210"
+              />
+            </div>
+          )}
+
+          {/* Website / normal input */}
+          {props.evidenceType !== 'qr' &&
+            props.evidenceType !== 'email' &&
+            props.evidenceType !== 'apk' && (
+              <input
+                type="text"
+                value={props.evidenceValue}
+                onChange={e => props.setEvidenceValue(e.target.value)}
+                className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                placeholder={selectedEvidence.placeholder}
+              />
             )}
+        </div>
+      )}
 
-            {/* ═══════════════════════════════════════════════════════════════
-    EMAIL HEADER FORENSIC INPUT
-═══════════════════════════════════════════════════════════════ */}
-
-{props.evidenceType === 'email' && (
-  <div className="space-y-3">
-
-    <div className="flex items-center justify-between">
-
-      <span className="text-[10px] font-mono text-cyan-500/70 uppercase tracking-wider">
-        Raw Email Headers
-      </span>
-
-      <span className="text-[10px] font-mono text-gray-700">
-        SPF / DKIM / DMARC / SPOOF ANALYSIS
-      </span>
-
-    </div>
-
-    <textarea
-      value={props.evidenceValue}
-      onChange={e =>
-        props.setEvidenceValue(e.target.value)
-      }
-      rows={14}
-      spellCheck={false}
-      className="w-full bg-[#080c12] border border-gray-800 rounded-xl px-4 py-3 text-xs text-gray-300 placeholder-gray-700 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono leading-relaxed resize-y"
-      placeholder={`Paste the complete raw email headers here...
-
-Example:
-
-From: security@example.com
-To: analyst@example.com
-Subject: Security Alert
-Date: Sat, 23 Aug 2026 12:30:00 +0530
-Message-ID: <abc123@example.com>
-Reply-To: security@example.com
-Return-Path: <security@example.com>
-Authentication-Results: mx.example.com;
-    spf=pass;
-    dkim=pass;
-    dmarc=pass
-Received: from mail.example.com
-    by mx.example.com
-    with ESMTPS
-DKIM-Signature: v=1; a=rsa-sha256; ...
-Received-SPF: pass
-`}
-    />
-
-    <div className="flex items-start gap-2 px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/10 rounded-lg">
-
-      <ShieldCheck className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-
-      <p className="text-[11px] text-gray-500 leading-relaxed">
-        CTDE will examine authentication results, sender identity,
-        Reply-To and Return-Path mismatches, Received headers,
-        originating IP addresses, spoofing indicators and
-        suspicious keywords.
-      </p>
-
-    </div>
-
-  </div>
-)}
-
-{/* Normal evidence input */}
-{props.evidenceType !== 'qr' &&
-  props.evidenceType !== 'email' &&
-  props.evidenceType !== 'apk' && (
-    <input
-      type="text"
-      value={props.evidenceValue}
-      onChange={e =>
-        props.setEvidenceValue(
-          e.target.value
-        )
-      }
-      className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono"
-      placeholder={
-        selectedEvidence.placeholder
-      }
-    />
-  )}
-
-            <p className="text-xs text-gray-600 mt-1.5">
-              {selectedEvidence.desc}
-            </p>
-
-          </div>
-        )}
-
+      {/* ============================================================
+          CHECK BUTTON
+      ============================================================ */}
+      <div className="flex justify-center">
+        <button
+          onClick={props.onStart}
+          disabled={!canStart}
+          className="flex items-center justify-center gap-2 min-w-52 px-7 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-semibold rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
+        >
+          <ShieldCheck className="w-4 h-4" />
+          Check Now
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+        </button>
       </div>
 
-      {/* Start */}
-      <button
-        onClick={props.onStart}
-        disabled={!canStart}
-        className="flex items-center gap-2 px-6 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-medium rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
-      >
-        Start Investigation
-
-        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-      </button>
+      <p className="text-center text-[10px] text-gray-700 font-mono">
+        CyberVerify AI checks the information you provide and explains the result.
+      </p>
 
     </div>
   );
@@ -900,19 +795,19 @@ function ProgressStep({
     PROGRESS_STEPS.filter(label => {
 
       if (
-        label === 'APK Permission Analysis'
+        label === 'Checking app permissions'
       ) {
         return evidenceType === 'apk';
       }
 
       if (
-        label === 'QR Destination Analysis'
+        label === 'Checking QR destination'
       ) {
         return evidenceType === 'qr';
       }
 
       if (
-        label === 'Sender Verification'
+        label === 'Checking sender'
       ) {
         return evidenceType === 'sender';
       }
@@ -1073,11 +968,11 @@ function ProgressStep({
 
       <div>
         <h2 className="text-2xl font-bold text-gray-100">
-          Forensic Processing
+          Checking your information
         </h2>
 
         <p className="text-sm text-gray-500 mt-1">
-          Analyzing evidence:{' '}
+          Checking:{' '}
 
           <span className="font-mono text-cyan-400">
             {evidenceType === 'apk' && apkFile
@@ -1097,7 +992,7 @@ function ProgressStep({
         <div className="flex items-center justify-between mb-3">
 
           <span className="text-sm font-mono text-gray-400">
-            Overall Progress
+            Check Progress
           </span>
 
           <span className="text-lg font-bold text-cyan-400 font-mono">
@@ -1128,7 +1023,7 @@ function ProgressStep({
             <AlertTriangle className="w-5 h-5" />
 
             <h3 className="text-sm font-semibold">
-              Investigation Failed
+              We could not complete the check
             </h3>
 
           </div>
@@ -1142,7 +1037,7 @@ function ProgressStep({
             className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm font-medium rounded-lg transition-all"
           >
             <ArrowRight className="w-4 h-4 rotate-180" />
-            Back to Create
+            Try Again
           </button>
 
         </div>
@@ -1217,7 +1112,7 @@ function ProgressStep({
                 <Loader2 className="w-5 h-5 text-cyan-400 animate-spin flex-shrink-0" />
 
                 <span className="text-sm font-mono text-cyan-400">
-                  Finalizing analysis results...
+                  Preparing your result...
                 </span>
 
               </div>
@@ -1253,890 +1148,645 @@ function ResultStep(props: {
   onNewInvestigation: () => void;
   savedInvestigation: Investigation | null;
 }) {
-
   const {
     analysis,
     evidencePanel,
     timeline,
   } = props;
 
-  const scoreColor =
-    analysis.riskLevel === 'Safe'
-      ? 'emerald'
-      : analysis.riskLevel === 'Suspicious'
-      ? 'yellow'
-      : 'red';
-
   const aiConfidence =
     parseInt(
-      analysis.aiExplanation.match(
-        /\d+(?=%)/
-      )?.[0] || '90'
+      analysis.aiExplanation.match(/\d+(?=%)/)?.[0] || '90',
     );
 
+  const resultConfig = {
+    Safe: {
+      title: 'Looks Safe',
+      description:
+        'We did not find major security concerns in the checks performed.',
+      icon: ShieldCheck,
+      iconClass: 'text-emerald-400',
+      borderClass: 'border-emerald-500/25',
+      bgClass: 'bg-emerald-500/5',
+    },
+    Suspicious: {
+      title: 'Be Careful',
+      description:
+        'Some findings need your attention before you continue.',
+      icon: AlertTriangle,
+      iconClass: 'text-yellow-400',
+      borderClass: 'border-yellow-500/25',
+      bgClass: 'bg-yellow-500/5',
+    },
+    Dangerous: {
+      title: 'High Risk',
+      description:
+        'This check found signs that may indicate a security threat.',
+      icon: ShieldAlert,
+      iconClass: 'text-red-400',
+      borderClass: 'border-red-500/25',
+      bgClass: 'bg-red-500/5',
+    },
+  }[analysis.riskLevel];
+
+  const ResultIcon = resultConfig.icon;
+
+  const evidenceLabel = {
+    url: 'Website / Link',
+    email: 'Email / Message',
+    apk: 'Android App',
+    qr: 'QR Code',
+    sender: 'Sender / SMS',
+  }[props.evidenceType];
+
   const handleDownloadPDF = () => {
-
     if (props.savedInvestigation) {
-      generatePDFReport(
-        props.savedInvestigation
-      );
-
+      generatePDFReport(props.savedInvestigation);
     } else {
-
       props.onGenerateReport();
-
-      setTimeout(() => {
-
-        /*
-         * NOTE:
-         * This uses investigator name because that is how
-         * the current storage lookup is implemented in the
-         * existing project.
-         */
-        const tempInv =
-          investigationStore
-            .getByUser(
-              props.investigator
-            )
-            .slice(-1)[0];
-
-        if (tempInv) {
-          generatePDFReport(tempInv);
-        }
-
-      }, 100);
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
 
-      {/* Header */}
+      {/* =========================================================
+          RESULT HEADER
+      ========================================================= */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400/70">
+              CHECK COMPLETE
+            </span>
+          </div>
 
           <h2 className="text-2xl font-bold text-gray-100">
-            Investigation Result
+            Your Safety Check Result
           </h2>
 
-          <p className="text-sm text-gray-500 mt-1 font-mono">
-            {props.caseId}
+          <p className="text-sm text-gray-600 mt-1">
+            {evidenceLabel}
+          </p>
+        </div>
+
+        <StepIndicator current={2} compact />
+      </div>
+
+      {/* =========================================================
+          SIMPLE RESULT
+      ========================================================= */}
+      <section
+        className={`rounded-2xl border ${resultConfig.borderClass} ${resultConfig.bgClass} bg-[#0f1620] p-6 sm:p-8`}
+      >
+        <div className="flex flex-col items-center text-center">
+
+          <div className="w-16 h-16 rounded-2xl bg-[#0a0e14] border border-gray-800 flex items-center justify-center">
+            <ResultIcon className={`w-8 h-8 ${resultConfig.iconClass}`} />
+          </div>
+
+          <h1 className="text-3xl font-bold text-gray-100 mt-5">
+            {resultConfig.title}
+          </h1>
+
+          <p className="text-sm text-gray-500 max-w-xl mt-2 leading-relaxed">
+            {resultConfig.description}
           </p>
 
-        </div>
-
-        <StepIndicator
-          current={2}
-          compact
-        />
-
-      </div>
-
-      {/* Case Details */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-          <FileText className="w-4 h-4 text-cyan-400" />
-          Case Details
-        </h3>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-
-          <DetailField
-            label="Case ID"
-            value={props.caseId}
-          />
-
-          <DetailField
-            label="Evidence Type"
-            value={props.evidenceType.toUpperCase()}
-          />
-
-          <DetailField
-            label="Investigator"
-            value={props.investigator}
-          />
-
-          <DetailField
-            label="Timestamp"
-            value={new Date().toLocaleString()}
-          />
-
-        </div>
-
-      </div>
-
-      {/* Trust Score */}
-      <div
-        className={`bg-[#0f1620] border rounded-2xl p-6 card-hover border-${scoreColor}-500/30`}
-      >
-
-        <div className="flex flex-col sm:flex-row items-center gap-6">
-
-          <TrustGauge
-            score={analysis.trustScore}
-            riskLevel={analysis.riskLevel}
-          />
-
-          <div className="flex-1 space-y-3">
-
-            <h3 className="text-sm font-semibold text-gray-300">
-              Digital Trust Score
-            </h3>
-
-            <div className="flex items-center gap-3 flex-wrap">
-
-              <RiskBadgeLarge
-                level={analysis.riskLevel}
-              />
-
-              <span className="text-xs text-gray-600 font-mono">
-                Score: {analysis.trustScore}/100
-              </span>
-
-              <span className="text-xs text-cyan-400 font-mono">
-                AI Confidence: {aiConfidence}%
-              </span>
-
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <div className="px-5 py-3 rounded-xl bg-[#0a0e14] border border-gray-800">
+              <p className="text-[9px] font-mono text-gray-600 uppercase tracking-wider">
+                Safety Score
+              </p>
+              <p className="text-2xl font-bold text-gray-100 mt-1">
+                {analysis.trustScore}
+                <span className="text-sm text-gray-600">/100</span>
+              </p>
             </div>
 
-            <p className="text-sm text-gray-500">
+            <div className="px-5 py-3 rounded-xl bg-[#0a0e14] border border-gray-800">
+              <p className="text-[9px] font-mono text-gray-600 uppercase tracking-wider">
+                Check Type
+              </p>
+              <p className="text-sm font-semibold text-gray-300 mt-2">
+                {evidenceLabel}
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* =========================================================
+          WHAT WE FOUND
+      ========================================================= */}
+      <section className="rounded-2xl border border-gray-800/60 bg-[#0f1620] p-6">
+        <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+          <Eye className="w-4 h-4 text-cyan-400" />
+          What We Found
+        </h3>
+
+        <p className="text-sm text-gray-500 leading-relaxed mt-3">
+          {analysis.evidenceSummary}
+        </p>
+      </section>
+
+      {/* =========================================================
+          SIMPLE EXPLANATION
+      ========================================================= */}
+      <section className="rounded-2xl border border-purple-500/15 bg-[#0f1620] p-6">
+        <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+          <Bot className="w-4 h-4 text-purple-400" />
+          Simple Explanation
+        </h3>
+
+        <p className="text-sm text-gray-500 leading-relaxed mt-3">
+          {analysis.aiSummary || analysis.aiExplanation}
+        </p>
+      </section>
+
+      {/* =========================================================
+          WHAT SHOULD YOU DO
+      ========================================================= */}
+      <section className="rounded-2xl border border-gray-800/60 bg-[#0f1620] p-6">
+        <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+          <Lightbulb className="w-4 h-4 text-yellow-400" />
+          What Should You Do?
+        </h3>
+
+        <ul className="mt-4 space-y-2.5">
+          {analysis.recommendations.map((recommendation, index) => (
+            <li
+              key={index}
+              className="flex items-start gap-2.5 text-sm text-gray-500 leading-relaxed"
+            >
+              <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <span>{recommendation}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* =========================================================
+          TECHNICAL DETAILS
+      ========================================================= */}
+      <details className="rounded-2xl border border-gray-800/60 bg-[#0f1620] overflow-hidden">
+        <summary className="cursor-pointer list-none px-6 py-5 hover:bg-cyan-500/[0.02] transition-colors">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-300">
+                Technical Details
+              </h3>
+              <p className="text-[10px] text-gray-700 mt-1">
+                Advanced security and investigation information
+              </p>
+            </div>
+
+            <ChevronRight className="w-4 h-4 text-gray-600 transition-transform" />
+          </div>
+        </summary>
+
+        <div className="border-t border-gray-800/60 p-6 space-y-5">
+
+          {/* Basic technical information */}
+          <div>
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+              Check Information
+            </h4>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <DetailField label="Case ID" value={props.caseId} />
+              <DetailField label="Evidence Type" value={evidenceLabel} />
+              <DetailField
+                label="Trust Score"
+                value={`${analysis.trustScore}/100`}
+              />
+              <DetailField
+                label="Risk Level"
+                value={analysis.riskLevel}
+              />
+              <DetailField
+                label="AI Confidence"
+                value={`${aiConfidence}%`}
+              />
+              <DetailField
+                label="Investigator"
+                value={props.investigator}
+              />
+            </div>
+          </div>
+
+          {/* Score reasoning */}
+          <div className="rounded-xl bg-[#0a0e14] border border-gray-800/60 p-4">
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+              Decision Reasoning
+            </h4>
+
+            <p className="text-sm text-gray-500 leading-relaxed">
               {analysis.reasonBehindDecision}
             </p>
-
-            {/* REAL SCORE BREAKDOWN */}
-            <div className="mt-4 pt-4 border-t border-gray-800/60">
-
-              <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
-                Score Breakdown
-              </p>
-
-              <div className="space-y-2">
-
-                {buildScoreBreakdown(
-                  analysis
-                ).map((factor, i) => (
-
-                  <div
-                    key={i}
-                    className="flex items-start gap-2.5"
-                  >
-
-                    {factor.positive ? (
-
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-
-                    ) : (
-
-                      <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-
-                    )}
-
-                    <div className="flex-1">
-
-                      <span className="text-xs text-gray-300">
-                        {factor.label}
-                      </span>
-
-                      <span
-                        className={`text-xs font-mono ml-2 ${
-                          factor.positive
-                            ? 'text-emerald-400'
-                            : 'text-yellow-400'
-                        }`}
-                      >
-                        {factor.positive
-                          ? '+'
-                          : ''}
-                        {factor.points}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            </div>
-
           </div>
 
-        </div>
-
-      </div>
-
-      {/* Verification Modules */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-
-          <Activity className="w-4 h-4 text-cyan-400" />
-
-          Evidence Summary — Verification Modules
-
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-
-          {buildVerificationModules(
-            analysis,
-            evidencePanel
-          ).map((mod, i) => (
-
-            <div
-              key={i}
-              className="flex items-center gap-2.5 px-3 py-2.5 bg-[#0a0e14] border border-gray-800/50 rounded-lg"
-            >
-
-              <CheckCircle2
-                className={`w-4 h-4 flex-shrink-0 ${
-                  mod.passed
-                    ? 'text-emerald-400'
-                    : 'text-gray-700'
-                }`}
-              />
-
-              <div className="min-w-0">
-
-                <p className="text-xs font-medium text-gray-300 truncate">
-                  {mod.name}
-                </p>
-
-                <p className="text-[10px] text-gray-600 font-mono truncate">
-                  {mod.detail}
-                </p>
-
-              </div>
-
-            </div>
-
-          ))}
-
-        </div>
-
-      </div>
-      {/* ═══════════════════════════════════════════════════════════════════════
-    QR FORENSIC ANALYSIS
-═══════════════════════════════════════════════════════════════════════ */}
-
-{props.evidenceType === 'qr' && analysis.qr && (
-  <div className="bg-[#0f1620] border border-cyan-500/20 rounded-2xl p-6">
-
-    <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-      <QrCode className="w-4 h-4 text-cyan-400" />
-      QR Forensic Analysis
-    </h3>
-
-    <div className="space-y-4">
-
-      {/* Decode Status */}
-      <div className="flex items-center justify-between px-4 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-
-        <div className="flex items-center gap-3">
-
-          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-
+          {/* Score breakdown */}
           <div>
-            <p className="text-sm font-medium text-gray-200">
-              QR Code Decoded
-            </p>
-
-            <p className="text-xs text-gray-600 font-mono mt-0.5">
-              Digital evidence successfully extracted
-            </p>
-          </div>
-
-        </div>
-
-        <span className="text-xs font-mono text-emerald-400">
-          SUCCESS
-        </span>
-
-      </div>
-
-      {/* Decoded Destination */}
-      <div className="px-4 py-3 bg-[#0a0e14] border border-gray-800/60 rounded-xl">
-
-        <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
-          Decoded Destination
-        </p>
-
-        <p className="text-sm text-cyan-400 font-mono break-all">
-          {analysis.qr.decodedUrl || 'No destination extracted'}
-        </p>
-
-      </div>
-
-      {/* Analysis Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-        {/* Reputation */}
-        <div className="px-4 py-3 bg-[#0a0e14] border border-gray-800/60 rounded-xl">
-
-          <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
-            Destination Reputation
-          </p>
-
-          <p
-            className={`text-sm font-semibold ${
-              analysis.qr.reputation
-                ?.toLowerCase()
-                .includes('malicious')
-                ? 'text-red-400'
-                : analysis.qr.reputation
-                    ?.toLowerCase()
-                    .includes('suspicious')
-                ? 'text-yellow-400'
-                : 'text-emerald-400'
-            }`}
-          >
-            {analysis.qr.reputation || 'Unknown'}
-          </p>
-
-        </div>
-
-        {/* QR Risk */}
-        <div className="px-4 py-3 bg-[#0a0e14] border border-gray-800/60 rounded-xl">
-
-          <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
-            QR Risk Level
-          </p>
-
-          <p
-            className={`text-sm font-semibold ${
-              analysis.qr.qrRiskLevel
-                ?.toLowerCase()
-                .includes('high') ||
-              analysis.qr.qrRiskLevel
-                ?.toLowerCase()
-                .includes('danger')
-                ? 'text-red-400'
-                : analysis.qr.qrRiskLevel
-                    ?.toLowerCase()
-                    .includes('medium') ||
-                  analysis.qr.qrRiskLevel
-                    ?.toLowerCase()
-                    .includes('suspicious')
-                ? 'text-yellow-400'
-                : 'text-emerald-400'
-            }`}
-          >
-            {analysis.qr.qrRiskLevel || 'Unknown'}
-          </p>
-
-        </div>
-
-        {/* Redirect Count */}
-        <div className="px-4 py-3 bg-[#0a0e14] border border-gray-800/60 rounded-xl">
-
-          <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
-            Redirects Detected
-          </p>
-
-          <p className="text-sm font-semibold text-gray-300">
-            {analysis.qr.redirects?.length ?? 0}
-          </p>
-
-        </div>
-
-      </div>
-
-      {/* Redirect Chain */}
-      {analysis.qr.redirects &&
-        analysis.qr.redirects.length > 0 && (
-          <div className="px-4 py-3 bg-[#0a0e14] border border-yellow-500/10 rounded-xl">
-
-            <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
-              Redirect Chain
-            </p>
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+              Score Breakdown
+            </h4>
 
             <div className="space-y-2">
-
-              {analysis.qr.redirects.map(
-                (redirect, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-2"
-                  >
-
-                    <span className="text-[10px] font-mono text-gray-600 mt-0.5">
-                      {index + 1}.
-                    </span>
-
-                    <span className="text-xs text-gray-400 font-mono break-all">
-                      {redirect}
-                    </span>
-
-                  </div>
-                )
-              )}
-
-            </div>
-
-          </div>
-        )}
-
-    </div>
-
-  </div>
-)}
-      {/* Evidence Panel */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-
-          <Network className="w-4 h-4 text-cyan-400" />
-
-          Evidence Panel
-
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-
-          <PanelItem
-            icon={Globe}
-            label="Original URL"
-            value={evidencePanel.originalUrl}
-          />
-
-          <PanelItem
-            icon={Eye}
-            label="Resolved URL"
-            value={evidencePanel.resolvedUrl}
-          />
-
-          <PanelItem
-            icon={Server}
-            label="IP Address"
-            value={evidencePanel.ipAddress}
-          />
-
-          <PanelItem
-            icon={Server}
-            label="Hosting Provider"
-            value={evidencePanel.hostingProvider}
-          />
-
-          <PanelItem
-            icon={MapPin}
-            label="Country"
-            value={evidencePanel.country}
-          />
-
-          <PanelItem
-            icon={Fingerprint}
-            label="Registrar"
-            value={evidencePanel.registrar}
-          />
-
-          <PanelItem
-            icon={Lock}
-            label="SSL Status"
-            value={evidencePanel.sslStatus}
-          />
-
-          <PanelItem
-            icon={FileText}
-            label="WHOIS Status"
-            value={evidencePanel.whoisStatus}
-          />
-
-          <PanelItem
-            icon={Hash}
-            label="SHA256 Hash"
-            value={evidencePanel.sha256Hash}
-            mono
-          />
-
-        </div>
-
-      </div>
-{/* ============================================================
-    EMAIL HEADER FORENSIC ANALYSIS
-============================================================ */}
-
-{props.evidenceType === 'email' && analysis.email && (
-  <div className="bg-[#0f1620] border border-cyan-500/20 rounded-2xl p-6">
-    <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-      <Mail className="w-4 h-4 text-cyan-400" />
-      Email Header Forensic Analysis
-    </h3>
-
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-
-      <ForensicEmailField
-        label="SPF"
-        value={analysis.email.spf}
-        positive={analysis.email.spf.toLowerCase().includes('pass')}
-      />
-
-      <ForensicEmailField
-        label="DKIM"
-        value={analysis.email.dkim}
-        positive={analysis.email.dkim.toLowerCase().includes('pass')}
-      />
-
-      <ForensicEmailField
-        label="DMARC"
-        value={analysis.email.dmarc}
-        positive={analysis.email.dmarc.toLowerCase().includes('pass')}
-      />
-
-      <ForensicEmailField
-        label="Sender Domain"
-        value={analysis.email.senderDomain}
-        positive={true}
-      />
-
-      <ForensicEmailField
-        label="Reply-To Analysis"
-        value={analysis.email.replyToAnalysis}
-        positive={analysis.email.replyToAnalysis.toLowerCase().includes('match')}
-      />
-
-      <ForensicEmailField
-        label="Spoof Detection"
-        value={analysis.email.spoofDetection}
-        positive={analysis.email.spoofDetection.toLowerCase().includes('no')}
-      />
-
-    </div>
-
-    <div className="mt-4 px-4 py-3 bg-[#0a0e14] border border-gray-800/60 rounded-xl">
-      <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
-        Header Investigation Summary
-      </p>
-
-      <p className="text-xs text-gray-400 leading-relaxed">
-        {analysis.evidenceSummary}
-      </p>
-    </div>
-  </div>
-)}
-      {/* Analysis */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        <AnalysisCard
-          title="Evidence Summary"
-          content={analysis.evidenceSummary}
-        />
-
-        <AnalysisCard
-          title="Identity Verification"
-          content={analysis.identityVerification}
-        />
-
-        <AnalysisCard
-          title="Domain Verification"
-          content={analysis.domainVerification}
-        />
-
-        <AnalysisCard
-          title="Certificate Details"
-          content={analysis.certificateValidation}
-        />
-
-        <AnalysisCard
-          title="WHOIS Information"
-          content={analysis.whoisInfo}
-        />
-
-        <AnalysisCard
-          title="Brand Impersonation"
-          content={analysis.brandImpersonation}
-        />
-
-        <AnalysisCard
-          title="URL Analysis"
-          content={analysis.urlAnalysis}
-        />
-
-        {analysis.apkPermissionAnalysis && (
-          <AnalysisCard
-            title="APK Permission Analysis"
-            content={
-              analysis.apkPermissionAnalysis
-            }
-          />
-        )}
-
-        {analysis.senderVerification && (
-          <AnalysisCard
-            title="Sender Verification"
-            content={
-              analysis.senderVerification
-            }
-          />
-        )}
-
-        {analysis.qrVerification && (
-          <AnalysisCard
-            title="QR Destination Verification"
-            content={
-              analysis.qrVerification
-            }
-          />
-        )}
-
-        <AnalysisCard
-          title="Reputation Analysis"
-          content={analysis.reputationAnalysis}
-        />
-
-      </div>
-
-      {/* MITRE */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-3">
-          MITRE ATT&CK Mapping
-        </h3>
-
-        <div className="flex flex-wrap gap-2">
-
-          {analysis.mitreMapping.map(
-            (m, i) => (
-
-              <span
-                key={i}
-                className="text-xs font-mono px-3 py-1.5 bg-[#0a0e14] border border-gray-800 rounded-lg text-gray-400"
-              >
-                {m}
-              </span>
-            )
-          )}
-
-        </div>
-
-      </div>
-
-      {/* AI Explanation */}
-      <div className="bg-[#0f1620] border border-cyan-500/20 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-
-          <Bot className="w-4 h-4 text-cyan-400" />
-
-          AI Explanation
-
-        </h3>
-
-        <p className="text-sm text-gray-400 leading-relaxed">
-          {analysis.aiExplanation}
-        </p>
-
-      </div>
-
-      {/* AI Summary */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-
-          <Bot className="w-4 h-4 text-emerald-400" />
-
-          AI Summary
-
-        </h3>
-
-        <p className="text-sm text-gray-400 leading-relaxed">
-          {analysis.aiSummary}
-        </p>
-
-      </div>
-
-      {/* Recommendations */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-
-          <Lightbulb className="w-4 h-4 text-yellow-400" />
-
-          Recommendations
-
-        </h3>
-
-        <ul className="space-y-2">
-
-          {analysis.recommendations.map(
-            (r, i) => (
-
-              <li
-                key={i}
-                className="flex items-start gap-2 text-sm text-gray-400"
-              >
-
-                <ChevronRight className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-
-                {r}
-
-              </li>
-
-            )
-          )}
-
-        </ul>
-
-      </div>
-
-      {/* Timeline */}
-      <div className="bg-[#0f1620] border border-gray-800/60 rounded-2xl p-6">
-
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-
-          <Clock className="w-4 h-4 text-cyan-400" />
-
-          Investigation Timeline
-
-        </h3>
-
-        <div className="space-y-3">
-
-          {timeline.map(
-            (event, i) => (
-
-              <div
-                key={i}
-                className="flex items-start gap-3"
-              >
-
-                <div className="flex flex-col items-center">
-
-                  <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 ring-4 ring-cyan-500/10 flex-shrink-0 mt-1" />
-
-                  {i <
-                    timeline.length - 1 && (
-                    <div className="w-px h-8 bg-gray-800 mt-1" />
+              {buildScoreBreakdown(analysis).map((factor, index) => (
+                <div
+                  key={index}
+                  className="flex items-start gap-2.5 rounded-lg bg-[#0a0e14] border border-gray-800/50 px-3 py-2.5"
+                >
+                  {factor.positive ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
                   )}
 
+                  <span className="text-xs text-gray-400 flex-1">
+                    {factor.label}
+                  </span>
+
+                  <span
+                    className={`text-xs font-mono ${
+                      factor.positive
+                        ? 'text-emerald-400'
+                        : 'text-yellow-400'
+                    }`}
+                  >
+                    {factor.positive ? '+' : ''}
+                    {factor.points}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Verification modules */}
+          <div>
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+              Verification Checks
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {buildVerificationModules(
+                analysis,
+                evidencePanel,
+              ).map((mod, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2.5 px-3 py-2.5 bg-[#0a0e14] border border-gray-800/50 rounded-lg"
+                >
+                  <CheckCircle2
+                    className={`w-4 h-4 shrink-0 ${
+                      mod.passed
+                        ? 'text-emerald-400'
+                        : 'text-gray-700'
+                    }`}
+                  />
+
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-gray-300 truncate">
+                      {mod.name}
+                    </p>
+                    <p className="text-[10px] text-gray-600 truncate">
+                      {mod.detail}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Evidence details */}
+          <div>
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+              Evidence Details
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <PanelItem
+                icon={Globe}
+                label="Website / Link"
+                value={evidencePanel.originalUrl}
+              />
+              <PanelItem
+                icon={Eye}
+                label="Final Website"
+                value={evidencePanel.resolvedUrl}
+              />
+              <PanelItem
+                icon={Server}
+                label="Server Address"
+                value={evidencePanel.ipAddress}
+              />
+              <PanelItem
+                icon={Server}
+                label="Hosting Service"
+                value={evidencePanel.hostingProvider}
+              />
+              <PanelItem
+                icon={MapPin}
+                label="Country"
+                value={evidencePanel.country}
+              />
+              <PanelItem
+                icon={Fingerprint}
+                label="Registrar"
+                value={evidencePanel.registrar}
+              />
+              <PanelItem
+                icon={Lock}
+                label="Security Certificate"
+                value={evidencePanel.sslStatus}
+              />
+              <PanelItem
+                icon={FileText}
+                label="Registration Check"
+                value={evidencePanel.whoisStatus}
+              />
+              <PanelItem
+                icon={Hash}
+                label="File Fingerprint"
+                value={evidencePanel.sha256Hash}
+                mono
+              />
+            </div>
+          </div>
+
+          {/* QR details */}
+          {props.evidenceType === 'qr' && analysis.qr && (
+            <div>
+              <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+                QR Code Analysis
+              </h4>
+
+              <div className="space-y-3">
+                <div className="rounded-xl bg-[#0a0e14] border border-gray-800/60 p-4">
+                  <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
+                    Decoded Destination
+                  </p>
+                  <p className="text-sm text-cyan-400 font-mono break-all">
+                    {analysis.qr.decodedUrl || 'No destination extracted'}
+                  </p>
                 </div>
 
-                <div className="pb-2">
-
-                  <p className="text-sm text-gray-300">
-                    {event.label}
-                  </p>
-
-                  <p className="text-xs text-gray-600 font-mono">
-                    {new Date(
-                      event.timestamp
-                    ).toLocaleTimeString()}
-                  </p>
-
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <DetailField
+                    label="Destination Reputation"
+                    value={analysis.qr.reputation || 'Unknown'}
+                  />
+                  <DetailField
+                    label="QR Risk Level"
+                    value={analysis.qr.qrRiskLevel || 'Unknown'}
+                  />
+                  <DetailField
+                    label="Redirects"
+                    value={String(analysis.qr.redirects?.length ?? 0)}
+                  />
                 </div>
 
+                {analysis.qr.redirects &&
+                  analysis.qr.redirects.length > 0 && (
+                    <div className="rounded-xl bg-[#0a0e14] border border-gray-800/60 p-4">
+                      <p className="text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-2">
+                        Redirect Chain
+                      </p>
+
+                      <div className="space-y-2">
+                        {analysis.qr.redirects.map(
+                          (redirect, index) => (
+                            <div
+                              key={index}
+                              className="flex items-start gap-2"
+                            >
+                              <span className="text-[10px] font-mono text-gray-600">
+                                {index + 1}.
+                              </span>
+                              <span className="text-xs text-gray-400 font-mono break-all">
+                                {redirect}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
               </div>
-            )
+            </div>
           )}
 
+          {/* Email details */}
+          {props.evidenceType === 'email' && analysis.email && (
+            <div>
+              <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+                Email Security Analysis
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <ForensicEmailField
+                  label="SPF"
+                  value={analysis.email.spf}
+                  positive={analysis.email.spf.toLowerCase().includes('pass')}
+                />
+                <ForensicEmailField
+                  label="DKIM"
+                  value={analysis.email.dkim}
+                  positive={analysis.email.dkim.toLowerCase().includes('pass')}
+                />
+                <ForensicEmailField
+                  label="DMARC"
+                  value={analysis.email.dmarc}
+                  positive={analysis.email.dmarc.toLowerCase().includes('pass')}
+                />
+                <ForensicEmailField
+                  label="Sender Domain"
+                  value={analysis.email.senderDomain}
+                  positive={true}
+                />
+                <ForensicEmailField
+                  label="Reply-To Analysis"
+                  value={analysis.email.replyToAnalysis}
+                  positive={analysis.email.replyToAnalysis.toLowerCase().includes('match')}
+                />
+                <ForensicEmailField
+                  label="Spoof Detection"
+                  value={analysis.email.spoofDetection}
+                  positive={analysis.email.spoofDetection.toLowerCase().includes('no')}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Analysis details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <AnalysisCard
+              title="Evidence Summary"
+              content={analysis.evidenceSummary}
+            />
+            <AnalysisCard
+              title="Identity Verification"
+              content={analysis.identityVerification}
+            />
+            <AnalysisCard
+              title="Domain Verification"
+              content={analysis.domainVerification}
+            />
+            <AnalysisCard
+              title="Certificate Details"
+              content={analysis.certificateValidation}
+            />
+            <AnalysisCard
+              title="WHOIS Information"
+              content={analysis.whoisInfo}
+            />
+            <AnalysisCard
+              title="Brand Impersonation"
+              content={analysis.brandImpersonation}
+            />
+            <AnalysisCard
+              title="URL Analysis"
+              content={analysis.urlAnalysis}
+            />
+
+            {analysis.apkPermissionAnalysis && (
+              <AnalysisCard
+                title="APK Permission Analysis"
+                content={analysis.apkPermissionAnalysis}
+              />
+            )}
+
+            {analysis.senderVerification && (
+              <AnalysisCard
+                title="Sender Verification"
+                content={analysis.senderVerification}
+              />
+            )}
+
+            {analysis.qrVerification && (
+              <AnalysisCard
+                title="QR Destination Verification"
+                content={analysis.qrVerification}
+              />
+            )}
+
+            <AnalysisCard
+              title="Reputation Analysis"
+              content={analysis.reputationAnalysis}
+            />
+          </div>
+
+          {/* MITRE / security signals */}
+          <div>
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+              Security Signals
+            </h4>
+
+            <div className="flex flex-wrap gap-2">
+              {analysis.mitreMapping.map((mapping, index) => (
+                <span
+                  key={index}
+                  className="text-xs font-mono px-3 py-1.5 bg-[#0a0e14] border border-gray-800 rounded-lg text-gray-400"
+                >
+                  {mapping}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* AI technical explanation */}
+          <div className="rounded-xl bg-[#0a0e14] border border-gray-800/60 p-4">
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-2">
+              AI Analysis
+            </h4>
+
+            <p className="text-sm text-gray-500 leading-relaxed">
+              {analysis.aiExplanation}
+            </p>
+          </div>
+
+          {/* Timeline */}
+          <div>
+            <h4 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-3">
+              Investigation Timeline
+            </h4>
+
+            <div className="space-y-3">
+              {timeline.map((event, index) => (
+                <div
+                  key={index}
+                  className="flex items-start gap-3"
+                >
+                  <div className="flex flex-col items-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 ring-4 ring-cyan-500/10 shrink-0 mt-1" />
+
+                    {index < timeline.length - 1 && (
+                      <div className="w-px h-8 bg-gray-800 mt-1" />
+                    )}
+                  </div>
+
+                  <div className="pb-2">
+                    <p className="text-sm text-gray-400">
+                      {event.label}
+                    </p>
+                    <p className="text-xs text-gray-600 font-mono">
+                      {new Date(event.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
+      </details>
 
-      </div>
-
-      {/* Actions */}
+      {/* =========================================================
+          ACTIONS
+      ========================================================= */}
       <div className="flex flex-col sm:flex-row gap-3">
 
-        {!props.reportGenerated ? (
+        <button
+          onClick={handleDownloadPDF}
+          className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-semibold rounded-xl transition-all"
+        >
+          <FileDown className="w-4 h-4" />
+          {props.reportGenerated ? 'Download Report' : 'Save & Download Report'}
+        </button>
 
+        <button
+          onClick={props.onNewInvestigation}
+          className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-[#0f1620] hover:bg-gray-800/40 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-gray-200 font-semibold rounded-xl transition-all"
+        >
+          <ShieldCheck className="w-4 h-4" />
+          Check Something Else
+        </button>
+      </div>
+
+      {props.reportGenerated && (
+        <div className="flex flex-col sm:flex-row justify-center gap-4 text-center">
           <button
-            onClick={
-              props.onGenerateReport
-            }
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-medium rounded-lg transition-all"
+            onClick={() => props.onNavigate('reports')}
+            className="text-xs text-cyan-500/70 hover:text-cyan-400 transition-colors"
           >
-
-            <FileDown className="w-4 h-4" />
-
-            Generate Report
-
+            View My Reports →
           </button>
 
-        ) : (
-
-          <>
-
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm">
-
-              <CheckCircle2 className="w-4 h-4" />
-
-              Report saved
-
-            </div>
-
-            <button
-              onClick={
-                handleDownloadPDF
-              }
-              className="flex items-center gap-2 px-4 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 text-sm font-medium rounded-lg transition-all"
-            >
-
-              <FileDown className="w-4 h-4" />
-
-              Generate PDF
-
-            </button>
-
-            <button
-              onClick={() =>
-                props.onNavigate(
-                  'reports'
-                )
-              }
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0e14] border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-gray-200 text-sm rounded-lg transition-all"
-            >
-
-              <FileText className="w-4 h-4" />
-
-              View Reports
-
-            </button>
-
-            <button
-              onClick={() =>
-                props.onNavigate(
-                  'assistant'
-                )
-              }
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0e14] border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-gray-200 text-sm rounded-lg transition-all"
-            >
-
-              <Bot className="w-4 h-4" />
-
-              Ask AI
-
-            </button>
-
-            <button
-              onClick={() =>
-                props.onNavigate(
-                  'dashboard'
-                )
-              }
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0e14] border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-gray-200 text-sm rounded-lg transition-all ml-auto"
-            >
-
-              <LayoutDashboard className="w-4 h-4" />
-
-              Return Dashboard
-
-            </button>
-
-          </>
-
-        )}
-
-      </div>
+          <button
+            onClick={() => props.onNavigate('assistant')}
+            className="text-xs text-purple-500/70 hover:text-purple-400 transition-colors"
+          >
+            Ask CyberVerify about this result →
+          </button>
+        </div>
+      )}
 
     </div>
   );
 }
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SHARED COMPONENTS
-// ══════════════════════════════════════════════════════════════════════════════
 
 function StepIndicator({
   current,
@@ -2475,7 +2125,7 @@ function buildVerificationModules(
   return [
 
     {
-      name: 'Identity Verification',
+      name: 'Checking identity',
       detail: analysis.identityVerification.includes(
         'valid'
       )
@@ -2488,7 +2138,7 @@ function buildVerificationModules(
     },
 
     {
-      name: 'Domain Verification',
+      name: 'Checking website details',
       detail: analysis.domainVerification.includes(
         'resolves'
       )
@@ -2501,7 +2151,7 @@ function buildVerificationModules(
     },
 
     {
-      name: 'Certificate Validation',
+      name: 'Checking security certificate',
       detail:
         analysis.certificateValidation.includes(
           'Valid'
@@ -2515,7 +2165,7 @@ function buildVerificationModules(
     },
 
     {
-      name: 'WHOIS Lookup',
+      name: 'Checking website registration',
       detail:
         analysis.whoisInfo.includes('public')
           ? 'Public'
@@ -2562,13 +2212,13 @@ function buildVerificationModules(
     },
 
     {
-      name: 'MITRE ATT&CK Mapping',
+      name: 'Security Signals',
       detail: `${analysis.mitreMapping.length} techniques`,
       passed: true,
     },
 
     {
-      name: 'AI Summary Generation',
+      name: 'Preparing simple explanation',
       detail: 'Complete',
       passed: true,
     },

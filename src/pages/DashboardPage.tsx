@@ -85,40 +85,12 @@ export default function DashboardPage({
       (i) => i.riskLevel === 'Dangerous',
     ).length;
 
-    const averageScore =
-      total > 0
-        ? Math.round(
-            investigations.reduce(
-              (sum, i) => sum + i.trustScore,
-              0,
-            ) / total,
-          )
-        : 0;
-
     return {
       total,
       safe,
       suspicious,
       dangerous,
-      reports: total,
-      averageScore,
     };
-  }, [investigations]);
-
-  const evidenceCounts = useMemo(() => {
-    const counts: Record<EvidenceType, number> = {
-      url: 0,
-      email: 0,
-      apk: 0,
-      qr: 0,
-      sender: 0,
-    };
-
-    investigations.forEach((i) => {
-      counts[i.evidenceType]++;
-    });
-
-    return counts;
   }, [investigations]);
 
   const recent = useMemo(
@@ -134,246 +106,166 @@ export default function DashboardPage({
   const quickActions = [
     {
       key: 'verify-url' as PageKey,
-      label: 'Website / URL',
-      description: 'Analyze web resource',
+      label: 'Website / Link',
+      description: 'Check a website or link before you trust it',
       icon: Globe,
     },
     {
-      key: 'verify-domain' as PageKey,
-      label: 'Domain',
-      description: 'Inspect domain identity',
-      icon: Network,
-    },
-    {
       key: 'verify-email' as PageKey,
-      label: 'Email',
-      description: 'Analyze email evidence',
+      label: 'Email / Message',
+      description: 'Check a suspicious email or message',
       icon: Mail,
     },
     {
       key: 'verify-qr' as PageKey,
       label: 'QR Code',
-      description: 'Decode & investigate',
+      description: 'Find out where a QR code takes you',
       icon: QrCode,
     },
     {
       key: 'verify-apk' as PageKey,
-      label: 'APK',
-      description: 'Analyze Android package',
+      label: 'Android App',
+      description: 'Check an Android application',
       icon: Smartphone,
+    },
+    {
+      key: 'new-investigation' as PageKey,
+      label: 'Sender / SMS',
+      description: 'Check a suspicious sender or SMS',
+      icon: Send,
     },
   ];
 
   return (
-  <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn">
 
-    {/* =========================================================
-    CYBER FORENSICS HERO
-    ========================================================= */}
-<section className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#071018] min-h-[280px] lg:min-h-[320px] group">
+      {/* =========================================================
+          PUBLIC-FACING HERO
+      ========================================================= */}
+      <section className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#071018] min-h-[280px] lg:min-h-[320px] group">
 
-  {/* Background Video */}
-  <video
-    className="absolute inset-0 w-full h-full object-cover scale-[1.02] transition-transform duration-[8000ms] ease-out group-hover:scale-105"
-    autoPlay
-    muted
-    loop
-    playsInline
-    preload="auto"
-  >
-    <source
-      src="/animations/cyber-security.mp4"
-      type="video/mp4"
-    />
-  </video>
+        <video
+          className="absolute inset-0 w-full h-full object-cover scale-[1.02] transition-transform duration-[8000ms] ease-out group-hover:scale-105"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+        >
+          <source
+            src="/animations/cyber-security.mp4"
+            type="video/mp4"
+          />
+        </video>
 
-  {/* Main dark overlay */}
-  <div className="absolute inset-0 bg-[#050b12]/45" />
+        <div className="absolute inset-0 bg-[#050b12]/55" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#050b12]/95 via-[#071018]/75 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050b12]/85 to-transparent" />
+        <div className="absolute inset-0 cyber-grid opacity-10 pointer-events-none" />
 
-  {/* Left-side gradient for readable text */}
-  <div className="absolute inset-0 bg-gradient-to-r from-[#050b12]/95 via-[#071018]/70 to-transparent" />
+        <div className="absolute left-0 right-0 h-px bg-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.5)] animate-scan pointer-events-none" />
 
-  {/* Bottom gradient */}
-  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050b12]/80 to-transparent" />
+        <div className="relative z-10 flex min-h-[280px] lg:min-h-[320px] items-center px-6 py-8 lg:px-10">
+          <div className="max-w-2xl">
 
-  {/* Cyber grid */}
-  <div className="absolute inset-0 cyber-grid opacity-10 pointer-events-none" />
+            <div className="flex items-center gap-2 mb-4">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              </span>
 
-  {/* Animated scan line */}
-  <div className="absolute left-0 right-0 h-px bg-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.5)] animate-scan pointer-events-none" />
-
-  {/* Decorative glow */}
-  <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-  <div className="absolute -left-20 -bottom-20 w-64 h-64 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
-
-  {/* Hero Content */}
-  <div className="relative z-10 flex min-h-[280px] lg:min-h-[320px] items-center px-6 py-8 lg:px-10">
-
-    <div className="max-w-3xl animate-fadeIn">
-
-      {/* System Status */}
-      <div className="flex items-center gap-2 mb-4">
-
-        <span className="relative flex h-2.5 w-2.5">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-        </span>
-
-        <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-emerald-400">
-          Forensic System Online
-        </span>
-
-        <span className="h-px w-8 bg-emerald-500/30" />
-
-        <span className="text-[9px] font-mono text-gray-500 uppercase tracking-wider">
-          AI Engine Ready
-        </span>
-
-      </div>
-
-      {/* Main Title */}
-      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight">
-
-        Cyber Investigation
-
-        <span className="block text-cyan-400 drop-shadow-[0_0_18px_rgba(34,211,238,0.25)]">
-          Command Center
-        </span>
-
-      </h1>
-
-      {/* Description */}
-      <p className="mt-4 text-sm lg:text-base text-gray-300/90 max-w-2xl leading-relaxed">
-
-        Analyze digital evidence, investigate threats, correlate
-        intelligence and generate AI-assisted forensic insights
-        from a unified investigation platform.
-
-      </p>
-
-      {/* Technology Badges */}
-      <div className="flex flex-wrap gap-2 mt-5">
-
-        <span className="px-3 py-1.5 rounded-md border border-cyan-500/25 bg-cyan-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-cyan-300">
-          DIGITAL FORENSICS
-        </span>
-
-        <span className="px-3 py-1.5 rounded-md border border-emerald-500/25 bg-emerald-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-emerald-300">
-          THREAT INTELLIGENCE
-        </span>
-
-        <span className="px-3 py-1.5 rounded-md border border-purple-500/25 bg-purple-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-purple-300">
-          AI ANALYSIS
-        </span>
-
-        <span className="px-3 py-1.5 rounded-md border border-blue-500/25 bg-blue-500/10 backdrop-blur-sm text-[9px] font-mono tracking-wider text-blue-300">
-          MITRE ATT&CK
-        </span>
-
-      </div>
-
-      {/* Quick system indicators */}
-      <div className="flex flex-wrap items-center gap-5 mt-5 text-[9px] font-mono text-gray-500">
-
-        <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          EVIDENCE ENGINE
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-          THREAT ENGINE
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-          AI ASSISTANT
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-  {/* Top-right forensic decoration */}
-  <div className="absolute top-5 right-5 hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg border border-cyan-500/15 bg-black/20 backdrop-blur-sm">
-
-    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-
-    <span className="text-[9px] font-mono tracking-wider text-cyan-400/70">
-      SECURE CHANNEL
-    </span>
-
-  </div>
-
-  {/* Corner brackets */}
-  <div className="absolute top-3 left-3 w-5 h-5 border-l border-t border-cyan-400/30 pointer-events-none" />
-  <div className="absolute top-3 right-3 w-5 h-5 border-r border-t border-cyan-400/30 pointer-events-none" />
-  <div className="absolute bottom-3 left-3 w-5 h-5 border-l border-b border-cyan-400/30 pointer-events-none" />
-  <div className="absolute bottom-3 right-3 w-5 h-5 border-r border-b border-cyan-400/30 pointer-events-none" />
-
-</section>
-
-    {/* Header */}
-      {/* ================================================= */}
-
-      <section className="relative overflow-hidden rounded-2xl border border-cyan-500/10 bg-[#0f1620] p-6">
-
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-cyan-500/5 blur-3xl" />
-          <div className="absolute -left-20 -bottom-24 w-60 h-60 rounded-full bg-emerald-500/5 blur-3xl" />
-        </div>
-
-        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-
-              <span className="text-[10px] font-mono tracking-[0.2em] text-emerald-400/70">
-                FORENSIC SYSTEM ONLINE
+              <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-emerald-400">
+                CyberVerify AI Online
               </span>
             </div>
 
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-100">
-              Digital Trust Command Center
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight">
+              Stay Safe
+              <span className="block text-cyan-400 drop-shadow-[0_0_18px_rgba(34,211,238,0.25)]">
+                Before You Trust
+              </span>
             </h1>
 
-            <p className="text-sm text-gray-500 mt-2 max-w-2xl">
-              Investigate digital evidence, correlate threats,
-              calculate trust and generate forensic intelligence.
+            <p className="mt-4 text-sm lg:text-base text-gray-300/90 max-w-xl leading-relaxed">
+              Check websites, messages, QR codes and Android apps
+              for potential security risks before you interact with them.
             </p>
+
+            <button
+              onClick={() => onNavigate('new-investigation')}
+              className="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/30 hover:border-cyan-400/50 text-cyan-300 text-sm font-semibold transition-all"
+            >
+              <ScanSearch className="w-4 h-4" />
+              Check Something
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
           </div>
+        </div>
 
-          <button
-            onClick={() => onNavigate('new-investigation')}
-            className="group flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/30 hover:border-cyan-400/50 text-cyan-400 text-sm font-semibold transition-all"
-          >
-            <Plus className="w-4 h-4" />
+        <div className="absolute top-5 right-5 hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg border border-cyan-500/15 bg-black/20 backdrop-blur-sm">
+          <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="text-[9px] font-mono tracking-wider text-cyan-400/70">
+            PROTECTED
+          </span>
+        </div>
 
-            New Investigation
+        <div className="absolute top-3 left-3 w-5 h-5 border-l border-t border-cyan-400/30 pointer-events-none" />
+        <div className="absolute top-3 right-3 w-5 h-5 border-r border-t border-cyan-400/30 pointer-events-none" />
+        <div className="absolute bottom-3 left-3 w-5 h-5 border-l border-b border-cyan-400/30 pointer-events-none" />
+        <div className="absolute bottom-3 right-3 w-5 h-5 border-r border-b border-cyan-400/30 pointer-events-none" />
+      </section>
 
-            <ArrowUpRight
-              className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            />
-          </button>
+      {/* =========================================================
+          CHECK OPTIONS
+      ========================================================= */}
+      <section>
+        <SectionHeading
+          icon={ScanSearch}
+          title="What would you like to check?"
+          subtitle="Choose something you received or are unsure about"
+        />
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+
+            return (
+              <button
+                key={action.key}
+                onClick={() => onNavigate(action.key)}
+                className="group text-left rounded-xl border border-gray-800/70 bg-[#0f1620] hover:border-cyan-500/30 hover:bg-cyan-500/[0.03] p-4 transition-all duration-200"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-lg bg-gray-800/50 group-hover:bg-cyan-500/10 border border-gray-800 group-hover:border-cyan-500/20 flex items-center justify-center transition-all">
+                    <Icon className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" />
+                  </div>
+
+                  <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-cyan-500 transition-colors" />
+                </div>
+
+                <p className="text-sm font-medium text-gray-300 mt-4 group-hover:text-gray-100">
+                  {action.label}
+                </p>
+
+                <p className="text-[10px] text-gray-600 mt-1 leading-relaxed">
+                  {action.description}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </section>
 
-
-      {/* ================================================= */}
-      {/* SYSTEM OVERVIEW */}
-      {/* ================================================= */}
-
+      {/* =========================================================
+          SIMPLE ACTIVITY SUMMARY
+      ========================================================= */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
         <OverviewCard
           icon={FolderSearch}
-          label="Investigations"
+          label="Checks"
           value={stats.total}
-          description="Total cases"
+          description="Total checks"
           accent="cyan"
         />
 
@@ -381,409 +273,127 @@ export default function DashboardPage({
           icon={ShieldCheck}
           label="Safe"
           value={stats.safe}
-          description="Low-risk findings"
+          description="No major risk found"
           accent="emerald"
         />
 
         <OverviewCard
           icon={AlertTriangle}
-          label="Suspicious"
+          label="Be Careful"
           value={stats.suspicious}
-          description="Requires review"
+          description="Needs your attention"
           accent="yellow"
         />
 
         <OverviewCard
           icon={ShieldAlert}
-          label="Dangerous"
+          label="High Risk"
           value={stats.dangerous}
-          description="High-risk findings"
+          description="Potentially dangerous"
           accent="red"
         />
 
       </section>
 
+      {/* =========================================================
+          RECENT CHECKS
+      ========================================================= */}
+      <section className="rounded-2xl border border-gray-800/60 bg-[#0f1620] p-5">
 
-      {/* ================================================= */}
-      {/* QUICK INVESTIGATION */}
-      {/* ================================================= */}
+        <div className="flex items-center justify-between mb-4">
+          <SectionHeading
+            icon={Activity}
+            title="Your Recent Checks"
+            subtitle="See what you checked recently"
+          />
 
-      <section>
-
-        <SectionHeading
-          icon={ScanSearch}
-          title="Quick Investigation"
-          subtitle="Select an evidence source to begin analysis"
-        />
-
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-
-            return (
-              <button
-                key={action.key}
-                onClick={() =>
-                  onNavigate(action.key)
-                }
-                className="group text-left rounded-xl border border-gray-800/70 bg-[#0f1620] hover:border-cyan-500/30 hover:bg-cyan-500/[0.03] p-4 transition-all duration-200"
-              >
-
-                <div className="flex items-center justify-between">
-
-                  <div className="w-9 h-9 rounded-lg bg-gray-800/50 group-hover:bg-cyan-500/10 border border-gray-800 group-hover:border-cyan-500/20 flex items-center justify-center transition-all">
-
-                    <Icon className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" />
-
-                  </div>
-
-                  <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-cyan-500 transition-colors" />
-
-                </div>
-
-                <p className="text-sm font-medium text-gray-300 mt-4 group-hover:text-gray-100">
-                  {action.label}
-                </p>
-
-                <p className="text-[10px] text-gray-600 mt-1">
-                  {action.description}
-                </p>
-
-              </button>
-            );
-          })}
-
+          <button
+            onClick={() => onNavigate('history')}
+            className="text-[10px] font-mono text-gray-600 hover:text-cyan-400 transition-colors"
+          >
+            VIEW ALL →
+          </button>
         </div>
-      </section>
 
-
-      {/* ================================================= */}
-      {/* TRUST SCORE + RISK */}
-      {/* ================================================= */}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        <section className="lg:col-span-2 rounded-2xl border border-gray-800/60 bg-[#0f1620] p-5">
-
-          <SectionHeading
-            icon={TrendingUp}
-            title="Trust Intelligence"
-            subtitle="Average trust score across investigations"
-          />
-
-          <div className="flex flex-col sm:flex-row gap-6">
-
-            <div className="flex items-center justify-center sm:w-40">
-
-              <TrustScore
-                score={stats.averageScore}
-              />
-
-            </div>
-
-            <div className="flex-1">
-
-              <div className="grid grid-cols-3 gap-3 mb-5">
-
-                <MiniMetric
-                  label="Safe"
-                  value={stats.safe}
-                  icon={ShieldCheck}
-                  accent="emerald"
-                />
-
-                <MiniMetric
-                  label="Review"
-                  value={stats.suspicious}
-                  icon={AlertTriangle}
-                  accent="yellow"
-                />
-
-                <MiniMetric
-                  label="Critical"
-                  value={stats.dangerous}
-                  icon={ShieldAlert}
-                  accent="red"
-                />
-
-              </div>
-
-              <div className="rounded-xl bg-[#0a0e14] border border-gray-800/60 p-4">
-
-                <div className="flex items-center justify-between mb-3">
-
-                  <span className="text-[10px] font-mono text-gray-600 uppercase tracking-wider">
-                    Risk Distribution
-                  </span>
-
-                  <span className="text-[10px] font-mono text-gray-700">
-                    {stats.total} CASES
-                  </span>
-
-                </div>
-
-                <RiskBar
-                  safe={stats.safe}
-                  suspicious={stats.suspicious}
-                  dangerous={stats.dangerous}
-                />
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </section>
-
-
-        {/* Security Status */}
-
-        <section className="rounded-2xl border border-gray-800/60 bg-[#0f1620] p-5">
-
-          <SectionHeading
-            icon={ShieldCheck}
-            title="Security Status"
-            subtitle="Core intelligence services"
-          />
-
+        {recent.length > 0 ? (
           <div className="space-y-2">
-
-            <StatusRow
-              icon={Database}
-              label="Evidence Engine"
-              status="Operational"
-            />
-
-            <StatusRow
-              icon={Network}
-              label="Threat Intelligence"
-              status="Operational"
-            />
-
-            <StatusRow
-              icon={BrainCircuit}
-              label="AI Assistant"
-              status="Ready"
-            />
-
-            <StatusRow
-              icon={Target}
-              label="MITRE Mapping"
-              status="Ready"
-            />
-
-            <StatusRow
-              icon={Lock}
-              label="Evidence Integrity"
-              status="Protected"
-            />
-
-          </div>
-
-        </section>
-
-      </div>
-
-
-      {/* ================================================= */}
-      {/* RECENT CASES + EVIDENCE */}
-      {/* ================================================= */}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* Recent Cases */}
-
-        <section className="rounded-2xl border border-gray-800/60 bg-[#0f1620] p-5">
-
-          <div className="flex items-center justify-between mb-4">
-
-            <SectionHeading
-              icon={Activity}
-              title="Recent Investigations"
-              subtitle="Latest forensic cases"
-            />
-
-            <button
-              onClick={() =>
-                onNavigate('history')
-              }
-              className="text-[10px] font-mono text-gray-600 hover:text-cyan-400 transition-colors"
-            >
-              VIEW ALL →
-            </button>
-
-          </div>
-
-          {recent.length > 0 ? (
-            <div className="space-y-2">
-
-              {recent.map((inv) => {
-
-                const Icon =
-                  EVIDENCE_ICONS[
-                    inv.evidenceType
-                  ];
-
-                return (
-                  <div
-                    key={inv.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#0a0e14] border border-gray-800/50 hover:border-gray-700 transition-colors"
-                  >
-
-                    <div className="flex items-center gap-3 min-w-0">
-
-                      <div className="w-9 h-9 shrink-0 rounded-lg bg-gray-800/40 border border-gray-800 flex items-center justify-center">
-
-                        <Icon className="w-4 h-4 text-gray-500" />
-
-                      </div>
-
-                      <div className="min-w-0">
-
-                        <p className="text-xs font-medium text-gray-300 truncate">
-                          {inv.caseName}
-                        </p>
-
-                        <p className="text-[9px] font-mono text-gray-700 mt-1">
-                          {inv.caseId}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-
-                      <span className="text-xs font-mono text-gray-400">
-                        {inv.trustScore}
-                      </span>
-
-                      <RiskBadge
-                        level={inv.riskLevel}
-                      />
-
-                    </div>
-
-                  </div>
-                );
-
-              })}
-
-            </div>
-          ) : (
-            <EmptyState
-              message="No investigations yet"
-              action="Start your first investigation"
-              onClick={() =>
-                onNavigate('new-investigation')
-              }
-            />
-          )}
-
-        </section>
-
-
-        {/* Evidence Overview */}
-
-        <section className="rounded-2xl border border-gray-800/60 bg-[#0f1620] p-5">
-
-          <SectionHeading
-            icon={FolderSearch}
-            title="Evidence Overview"
-            subtitle="Investigated evidence sources"
-          />
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-
-            {(Object.keys(
-              evidenceCounts,
-            ) as EvidenceType[]).map((type) => {
-
-              const Icon =
-                EVIDENCE_ICONS[type];
+            {recent.map((inv) => {
+              const Icon = EVIDENCE_ICONS[inv.evidenceType];
 
               return (
                 <div
-                  key={type}
-                  className="rounded-xl bg-[#0a0e14] border border-gray-800/50 p-4"
+                  key={inv.id}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#0a0e14] border border-gray-800/50 hover:border-gray-700 transition-colors"
                 >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 shrink-0 rounded-lg bg-gray-800/40 border border-gray-800 flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-gray-500" />
+                    </div>
 
-                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-gray-300 truncate">
+                        {EVIDENCE_LABELS[inv.evidenceType]}
+                      </p>
 
-                    <Icon className="w-4 h-4 text-gray-600" />
-
-                    <span className="text-lg font-bold font-mono text-gray-300">
-                      {evidenceCounts[type]}
-                    </span>
-
+                      <p className="text-[9px] text-gray-700 mt-1 truncate">
+                        {inv.caseName}
+                      </p>
+                    </div>
                   </div>
 
-                  <p className="text-[10px] text-gray-600 mt-3 uppercase tracking-wider">
-                    {EVIDENCE_LABELS[type]}
-                  </p>
-
+                  <div className="flex items-center gap-2 shrink-0">
+                    <RiskBadge level={inv.riskLevel} />
+                  </div>
                 </div>
               );
-
             })}
+          </div>
+        ) : (
+          <EmptyState
+            message="You haven't checked anything yet."
+            action="Start your first check"
+            onClick={() => onNavigate('new-investigation')}
+          />
+        )}
+      </section>
 
+      {/* =========================================================
+          SIMPLE HELP / AI
+      ========================================================= */}
+      <section className="rounded-2xl border border-purple-500/15 bg-[#0f1620] p-5 relative overflow-hidden">
+        <div className="absolute -right-20 -top-20 w-56 h-56 rounded-full bg-purple-500/5 blur-3xl pointer-events-none" />
+
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 shrink-0 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+              <BrainCircuit className="w-4 h-4 text-purple-400" />
+            </div>
+
+            <div>
+              <h2 className="text-sm font-semibold text-gray-200">
+                Need help understanding a result?
+              </h2>
+
+              <p className="text-[10px] text-gray-600 mt-1 max-w-xl leading-relaxed">
+                Ask CyberVerify to explain your security check in simple language.
+              </p>
+            </div>
           </div>
 
-        </section>
-
-      </div>
-
-
-      {/* ================================================= */}
-      {/* INTELLIGENCE SHORTCUTS */}
-      {/* ================================================= */}
-
-      <section>
-
-        <SectionHeading
-          icon={BrainCircuit}
-          title="CyberTrust Intelligence"
-          subtitle="Continue your investigation workflow"
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-
-          <IntelligenceCard
-            icon={BrainCircuit}
-            title="CTDE Decision Engine"
-            description="Correlate evidence and determine digital trust."
-            onClick={() =>
-              onNavigate('ctde')
-            }
-          />
-
-          <IntelligenceCard
-            icon={Target}
-            title="MITRE ATT&CK"
-            description="Map investigation findings to threat techniques."
-            onClick={() =>
-              onNavigate('mitre')
-            }
-          />
-
-          <IntelligenceCard
-            icon={FileText}
-            title="Investigation Reports"
-            description="Review generated forensic investigation reports."
-            onClick={() =>
-              onNavigate('reports')
-            }
-          />
-
+          <button
+            onClick={() => onNavigate('assistant')}
+            className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 text-purple-300 text-xs font-medium transition-all"
+          >
+            Ask CyberVerify
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
-
       </section>
 
     </div>
   );
 }
+
 
 
 /* ========================================================= */
