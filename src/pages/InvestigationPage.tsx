@@ -37,20 +37,15 @@ import {
   ShieldAlert,
   Bot,
   Lightbulb,
-  Activity,
   FileText,
   ChevronRight,
-  Clock,
   Server,
   MapPin,
   Hash,
   Lock,
   Fingerprint,
-  Network,
   Eye,
-  LayoutDashboard,
   Upload,
-  ImageIcon,
 } from 'lucide-react';
 
 type Step = 'create' | 'progress' | 'result';
@@ -423,7 +418,6 @@ function CreateStep(props: {
   );
 
   const [qrDecoding] = useState(false);
-  const [qrDecoded, setQrDecoded] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
 
   const canStart =
@@ -446,8 +440,6 @@ function CreateStep(props: {
     }
 
     setQrError(null);
-    setQrDecoded(false);
-
     if (!file.type.startsWith('image/')) {
       setQrError('Please choose a valid QR image.');
       e.target.value = '';
@@ -456,7 +448,6 @@ function CreateStep(props: {
 
     props.setQrFile(file);
     props.setEvidenceValue('');
-    setQrDecoded(true);
   };
 
   return (
@@ -672,7 +663,6 @@ function CreateStep(props: {
                 onChange={e => {
                   props.setEvidenceValue(e.target.value);
                   props.setQrFile(null);
-                  setQrDecoded(false);
                   setQrError(null);
                 }}
                 className="w-full bg-[#0a0e14] border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
@@ -1273,6 +1263,8 @@ function ResultStep(props: {
                 {evidenceLabel}
               </p>
             </div>
+
+            <RiskBadgeLarge level={analysis.riskLevel} />
           </div>
 
         </div>
@@ -1872,84 +1864,6 @@ function StepIndicator({
         </div>
 
       ))}
-
-    </div>
-  );
-}
-
-
-function TrustGauge({
-  score,
-  riskLevel,
-}: {
-  score: number;
-  riskLevel: RiskLevel;
-}) {
-
-  const circumference =
-    2 * Math.PI * 45;
-
-  const offset =
-    circumference -
-    (score / 100) *
-      circumference;
-
-  const color =
-    riskLevel === 'Safe'
-      ? '#00ff9d'
-      : riskLevel === 'Suspicious'
-      ? '#ffb800'
-      : '#ff3b5c';
-
-  return (
-    <div className="relative w-32 h-32 flex-shrink-0">
-
-      <svg
-        className="w-full h-full -rotate-90"
-        viewBox="0 0 100 100"
-      >
-
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          fill="none"
-          stroke="#1f2937"
-          strokeWidth="6"
-        />
-
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          fill="none"
-          stroke={color}
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          style={{
-            transition:
-              'stroke-dashoffset 1s ease-out',
-          }}
-        />
-
-      </svg>
-
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-
-        <span
-          className="text-3xl font-bold"
-          style={{ color }}
-        >
-          {score}
-        </span>
-
-        <span className="text-[10px] font-mono text-gray-600">
-          / 100
-        </span>
-
-      </div>
 
     </div>
   );
