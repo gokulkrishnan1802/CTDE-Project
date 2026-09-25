@@ -302,3 +302,6 @@ class ReportOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class GoogleLoginRequest(BaseModel):
+    credential: str

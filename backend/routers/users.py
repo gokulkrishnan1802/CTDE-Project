@@ -27,6 +27,21 @@ from datetime import datetime, timedelta, timezone
 
 from email_service import send_otp_email
 
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from config import settings
+
+from schemas import (
+    UserRegister,
+    UserLogin,
+    UserOut,
+    Token,
+    ForgotPasswordRequest,
+    VerifyOTPRequest,
+    ResetPasswordRequest,
+    GoogleLoginRequest,
+)
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -60,6 +75,113 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
     token = create_access_token(subject=user.id)
     return Token(access_token=token, user=UserOut.model_validate(user))
+
+@router.post("/google", response_model=Token)
+def google_login(
+    payload: GoogleLoginRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verify the credential with Google
+        idinfo = id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+
+        google_id = idinfo.get("sub")
+        email = idinfo.get("email")
+        email_verified = idinfo.get("email_verified", False)
+        full_name = idinfo.get("name") or "Google User"
+
+        if not google_id or not email or not email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Google account"
+            )
+
+        # First try to find an account already linked to this Google account
+        user = db.query(User).filter(
+            User.google_id == google_id
+        ).first()
+
+        # If not linked yet, check for an existing CyberVerify account
+        # with the same verified Google email.
+        if not user:
+            user = db.query(User).filter(
+                User.email == email
+            ).first()
+
+            if user:
+                # Link Google to the existing account.
+                user.google_id = google_id
+                db.commit()
+                db.refresh(user)
+
+            else:
+                # Generate a username from the Google email.
+                base_username = email.split("@")[0]
+
+                # Keep only safe username characters.
+                base_username = "".join(
+                    char for char in base_username
+                    if char.isalnum() or char in "._-"
+                )
+
+                if not base_username:
+                    base_username = "user"
+
+                username = base_username
+
+                # Ensure username is unique.
+                while db.query(User).filter(
+                    User.username == username
+                ).first():
+                    username = (
+                        f"{base_username}_{secrets.token_hex(3)}"
+                    )
+
+                # The current database requires hashed_password.
+                # Google users therefore receive an unusable random password.
+                random_password = secrets.token_urlsafe(32)
+
+                user = User(
+                    full_name=full_name,
+                    email=email,
+                    username=username,
+                    hashed_password=hash_password(random_password),
+                    google_id=google_id,
+                    auth_provider="google",
+                )
+
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+
+        # Issue the same CyberVerify JWT used by normal login.
+        token = create_access_token(subject=user.id)
+
+        return Token(
+            access_token=token,
+            user=UserOut.model_validate(user)
+        )
+
+    except HTTPException:
+        raise
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Google credential"
+        )
+
+    except Exception:
+        logger.exception("Google Sign-In failed")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google Sign-In failed"
+        )
 
 @router.post("/forgot-password")
 def forgot_password(
