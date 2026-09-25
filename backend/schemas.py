@@ -288,7 +288,7 @@ class AnalysisResponse(BaseModel):
     email: Optional[EmailData] = None
     apk: Optional[APKData] = None
     evidencePanel: EvidencePanelData
-
+    digitalEvidence: Optional[dict] = None
 
 # ── Report Schemas ────────────────────────────────────────────────────────────
 

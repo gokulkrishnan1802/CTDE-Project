@@ -3,6 +3,11 @@ Investigation router.
 POST /analyze — main investigation endpoint (called by the frontend).
 Dispatches to the correct service pipeline based on evidenceType.
 """
+from services.evidence import (
+    extract_url_evidence,
+    extract_email_header_evidence,
+    file_evidence_metadata,
+)
 import io
 import os
 import zipfile
@@ -177,7 +182,7 @@ async def analyze_email_headers(
     """
 
     raw_headers = raw_headers.strip()
-
+    
     if not raw_headers:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -186,6 +191,14 @@ async def analyze_email_headers(
 
     try:
         header_evidence = investigate_email_headers(
+            raw_headers
+        )
+
+        # --------------------------------------------------------------
+        # MODULE 4 — DIGITAL EVIDENCE EXTRACTION
+        # --------------------------------------------------------------
+
+        digital_evidence = extract_email_header_evidence(
             raw_headers
         )
 
@@ -559,6 +572,8 @@ async def analyze_email_headers(
             ],
 
             "emailHeaderEvidence": header_evidence,
+            "digitalEvidence": digital_evidence,
+
         }
 
         ai_texts = await generate_explanation(
@@ -799,6 +814,8 @@ async def analyze_email_headers(
 
             reputation=reputation,
 
+            digitalEvidence=digital_evidence,
+
             evidencePanel=evidence_panel,
         )
 
@@ -824,6 +841,9 @@ async def analyze_email_headers(
 
 async def _pipeline_url(url: str) -> AnalysisResponse:
     url = normalize_url(url)
+
+    # Module 4 — Digital Evidence Extraction
+    digital_evidence = extract_url_evidence(url)
 
     parsed = urlparse(url)
     domain = parsed.hostname or extract_domain(url)
@@ -871,14 +891,17 @@ async def _pipeline_url(url: str) -> AnalysisResponse:
     # ──────────────────────────────────────────────────────────────────────────
 
     risk_evidence = {
-        "whois": whois_data,
-        "ssl": ssl_data,
-        "dns": dns_data,
-        "reputation": reputation,
-        "brand": brand_data,
-        "urlAnalysis": url_analysis,
-        "website": website,
-    }
+    "whois": whois_data,
+    "ssl": ssl_data,
+    "dns": dns_data,
+    "reputation": reputation,
+    "brand": brand_data,
+    "urlAnalysis": url_analysis,
+    "website": website,
+
+    # Module 4 extracted evidence
+    "digitalEvidence": digital_evidence,
+}
 
     risk_result = score_url(risk_evidence)
 
@@ -1015,6 +1038,8 @@ async def _pipeline_url(url: str) -> AnalysisResponse:
             if brand_data
             else {}
         ),
+
+        "digitalEvidence": digital_evidence,
     }
 
     ai_texts = await generate_explanation(ai_context)
@@ -1057,8 +1082,8 @@ async def _pipeline_url(url: str) -> AnalysisResponse:
         reputationAnalysis=rep_text,
 
         trustScore=risk_result.score,
-riskLevel=risk_result.risk_level,
-confidence=90,
+        riskLevel=risk_result.risk_level,
+        confidence=90,
 
         reasonBehindDecision=_reason_text(risk_result),
 
@@ -1098,6 +1123,8 @@ confidence=90,
         brand=brand_data,
         urlAnalysisStructured=url_analysis,
 
+        digitalEvidence=digital_evidence,
+
         evidencePanel=evidence_panel,
     )
 
@@ -1111,6 +1138,22 @@ async def _pipeline_email(email_str: str) -> AnalysisResponse:
     domain = email_evidence["domain"]
     email_data = email_evidence["emailData"]
     dns_data = email_evidence["dns"]
+
+    # Module 4 — Digital Evidence Extraction
+    digital_evidence = {
+        "evidenceType": "email",
+        "collection": {
+            "sha256": email_evidence.get("sha256", sha256_of_string(email_str)),
+            "source": "email-address",
+        },
+        "extracted": {
+            "email": email_evidence.get("email", email_str),
+            "domain": domain,
+            "isFreemail": email_evidence.get("isFreemail", False),
+            "mxExists": email_evidence.get("mxExists", False),
+            "suspiciousKeywords": email_evidence.get("suspiciousKeywords", []),
+        },
+    }
 
     reputation = await check_reputation(email_str)
 
@@ -1180,6 +1223,7 @@ async def _pipeline_email(email_str: str) -> AnalysisResponse:
             }
             for factor in risk_result.factors
         ],
+        "digitalEvidence": digital_evidence,
     }
 
     ai_texts = await generate_explanation(
@@ -1288,6 +1332,7 @@ async def _pipeline_email(email_str: str) -> AnalysisResponse:
         ssl=ssl_data,
         dns=dns_data,
         reputation=reputation,
+        digitalEvidence=digital_evidence,
 
         evidencePanel=evidence_panel,
     )
@@ -1319,6 +1364,17 @@ async def _pipeline_apk_string(apk_value: str) -> AnalysisResponse:
             "Static analysis requires APK binary upload"
         ),
         "riskScore": 50,
+    }
+
+    # Module 4 — Digital Evidence Extraction
+    digital_evidence = {
+        "evidenceType": "apk",
+        "collection": {
+            "sha256": sha,
+            "filename": apk_value,
+            "source": "filename-only",
+        },
+        "extracted": apk_evidence,
     }
 
     from schemas import APKData
@@ -1362,6 +1418,7 @@ async def _pipeline_apk_string(apk_value: str) -> AnalysisResponse:
             }
             for factor in risk_result.factors
         ],
+        "digitalEvidence": digital_evidence,
     }
 
     ai_texts = await generate_explanation(ai_context)
@@ -1369,6 +1426,7 @@ async def _pipeline_apk_string(apk_value: str) -> AnalysisResponse:
     return AnalysisResponse(
         evidenceType="apk",
         evidenceValue=apk_value,
+        digitalEvidence=digital_evidence,
 
         evidenceSummary=(
             f"APK investigation of '{apk_value}'. "
@@ -1520,7 +1578,16 @@ async def analyze_apk_file(
             apk_bytes,
             file.filename,
         )
-
+        # Module 4 — Digital Evidence Extraction
+        digital_evidence = {
+            "evidenceType": "apk",
+            "collection": file_evidence_metadata(
+                apk_bytes,
+                file.filename,
+                file.content_type,
+            ),
+            "extracted": apk_evidence,
+        }
         from schemas import APKData
 
         risk_result = score_apk(apk_evidence)
@@ -1561,6 +1628,7 @@ async def analyze_apk_file(
                 for factor in risk_result.factors
             ],
             "apkEvidence": apk_evidence,
+            "digitalEvidence": digital_evidence,
         }
 
         ai_texts = await generate_explanation(ai_context)
@@ -1588,6 +1656,7 @@ async def analyze_apk_file(
         result = AnalysisResponse(
             evidenceType="apk",
             evidenceValue=file.filename,
+            digitalEvidence=digital_evidence,
             evidenceSummary=(
                 f"APK forensic investigation of '{file.filename}'. "
                 f"SHA-256: {apk_evidence.get('sha256', '')}. "
@@ -1696,11 +1765,39 @@ async def analyze_apk_file(
 # QR PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def _pipeline_qr(content: str) -> AnalysisResponse:
+async def _pipeline_qr(
+    content: str,
+    source_file_metadata: dict | None = None,
+) -> AnalysisResponse:
     qr_evidence = await investigate_qr(content)
 
     qr_data = qr_evidence["qrData"]
     resolved_url = qr_evidence["resolvedUrl"]
+
+    # Module 4 — Digital Evidence Extraction
+    digital_evidence = {
+        "evidenceType": "qr",
+        "collection": (
+            source_file_metadata
+            if source_file_metadata is not None
+            else {
+                "sha256": sha256_of_string(content),
+                "source": "decoded-content",
+            }
+        ),
+        "extracted": {
+            "decodedContent": content,
+            "resolvedUrl": resolved_url,
+            "isUrl": qr_evidence.get("isUrl", False),
+            "redirects": qr_evidence.get("redirects", []),
+            "riskIndicators": qr_evidence.get("riskIndicators", []),
+            "qrData": (
+                qr_data.model_dump()
+                if hasattr(qr_data, "model_dump")
+                else qr_data
+            ),
+        },
+    }
 
     url_result: AnalysisResponse | None = None
 
@@ -1731,6 +1828,7 @@ async def _pipeline_qr(content: str) -> AnalysisResponse:
         url_result.evidenceValue = content
         url_result.qrVerification = qr_verif
         url_result.qr = qr_data
+        url_result.digitalEvidence = digital_evidence
 
         # Apply QR-specific penalties to the existing URL score.
         qr_penalty = (
@@ -1770,6 +1868,7 @@ async def _pipeline_qr(content: str) -> AnalysisResponse:
             }
             for factor in risk_result.factors
         ],
+        "digitalEvidence": digital_evidence,
     }
 
     ai_texts = await generate_explanation(ai_context)
@@ -1779,6 +1878,7 @@ async def _pipeline_qr(content: str) -> AnalysisResponse:
     return AnalysisResponse(
         evidenceType="qr",
         evidenceValue=content,
+        digitalEvidence=digital_evidence,
 
         evidenceSummary=(
             f"QR code investigation. "
@@ -1865,6 +1965,9 @@ async def _pipeline_sender(sender: str) -> AnalysisResponse:
     result = await _pipeline_email(sender)
 
     result.evidenceType = "sender"
+
+    if result.digitalEvidence:
+        result.digitalEvidence["evidenceType"] = "sender"
 
     return result
 
@@ -2550,9 +2653,19 @@ async def analyze_qr_image(
             detail="No readable QR code found in the uploaded image."
         )
 
+    # Module 4 — preserve the uploaded QR image as digital evidence.
+    qr_file_metadata = file_evidence_metadata(
+        image_bytes,
+        file.filename,
+        file.content_type,
+    )
+
     # ── Continue with existing CTDE QR pipeline ────────────────────────
     try:
-        result = await _pipeline_qr(decoded_content)
+        result = await _pipeline_qr(
+            decoded_content,
+            source_file_metadata=qr_file_metadata,
+        )
 
         return result
 
