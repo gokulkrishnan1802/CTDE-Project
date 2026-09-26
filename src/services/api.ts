@@ -5,7 +5,9 @@ import type {
   ScoreBreakdown,
 } from '../types';
 
-const API_BASE_URL = 'https://cyberverify-ai.onrender.com';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'https://cyberverify-ai.onrender.com';
 export class ApiError extends Error {
   status?: number;
 
@@ -88,6 +90,11 @@ export interface LoginRequest {
   password: string;
 }
 
+// Google Sign-In request
+export interface GoogleLoginRequest {
+  credential: string;
+}
+
 const AUTH_TOKEN_KEY = 'cyberverify_access_token';
 
 export function getAuthToken(): string | null {
@@ -115,6 +122,16 @@ export async function loginUser(
   payload: LoginRequest
 ): Promise<AuthResponse> {
   return request<AuthResponse>('/users/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// Google Sign-In
+export async function loginWithGoogleUser(
+  payload: GoogleLoginRequest
+): Promise<AuthResponse> {
+  return request<AuthResponse>('/users/google', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

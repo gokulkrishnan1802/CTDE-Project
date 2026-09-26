@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import AuthLayout from '../components/AuthLayout';
 import { Lock, User as UserIcon, AlertCircle, ArrowRight, KeyRound, Mail } from 'lucide-react';
@@ -59,7 +59,9 @@ const getUserFriendlyError = (error: any): string => {
   return 'Something went wrong. Please try again.';
 };
 export default function AuthPage() {
-  const { login, register } = useAuth();
+  const { login, loginWithGoogle, register } = useAuth();
+
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<Mode>('login');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -146,6 +148,96 @@ const handleRegister = async (e: React.FormEvent) => {
     setError('');
   };
 
+  // ── Google Sign-In ───────────────────────────────────────────────────────────
+useEffect(() => {
+  if (mode !== 'login') {
+    return;
+  }
+
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  if (!clientId) {
+    console.error('VITE_GOOGLE_CLIENT_ID is not configured.');
+    return;
+  }
+
+  const initializeGoogle = () => {
+    if (!window.google || !googleButtonRef.current) {
+      return;
+    }
+
+    // Prevent duplicate Google buttons during development/re-renders.
+    googleButtonRef.current.innerHTML = '';
+
+    window.google!.accounts.id.initialize({
+      client_id: clientId,
+
+      callback: async (response: { credential: string }) => {
+        setError('');
+        setSuccess('');
+        setLoading(true);
+
+        const result = await loginWithGoogle(response.credential);
+
+        setLoading(false);
+
+        if (!result.ok) {
+          setError(
+            getUserFriendlyError(
+              result.error || 'Google Sign-In failed.'
+            )
+          );
+        }
+      },
+    });
+
+    window.google!.accounts.id.renderButton(
+      googleButtonRef.current,
+      {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        width: 350,
+      }
+    );
+  };
+
+  if (window.google) {
+    initializeGoogle();
+    return;
+  }
+
+  const existingScript = document.querySelector(
+    'script[src="https://accounts.google.com/gsi/client"]'
+  );
+
+  if (existingScript) {
+    existingScript.addEventListener('load', initializeGoogle);
+
+    return () => {
+      existingScript.removeEventListener(
+        'load',
+        initializeGoogle
+      );
+    };
+  }
+
+  const script = document.createElement('script');
+
+  script.src = 'https://accounts.google.com/gsi/client';
+  script.async = true;
+  script.defer = true;
+  script.onload = initializeGoogle;
+
+  document.head.appendChild(script);
+
+  return () => {
+    script.onload = null;
+  };
+}, [mode]);
+
   return (
     <AuthLayout>
       <div className="bg-[#0f1620]/80 backdrop-blur-xl border border-gray-800 rounded-2xl p-8 shadow-2xl animate-fadeIn">
@@ -223,7 +315,17 @@ const handleRegister = async (e: React.FormEvent) => {
               className="w-full flex items-center justify-center gap-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-medium py-2.5 rounded-lg transition-all disabled:opacity-50 group"
             >
               {loading ? 'Authenticating...' : <>Access Dashboard <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" /></>}
-            </button>
+            </button><div className="flex items-center gap-3 py-1">
+  <div className="h-px flex-1 bg-gray-800" />
+  <span className="text-xs text-gray-600 uppercase tracking-wider">
+    or
+  </span>
+  <div className="h-px flex-1 bg-gray-800" />
+</div>
+
+<div className="flex justify-center">
+  <div ref={googleButtonRef} />
+</div>
             <p className="text-center text-xs text-gray-600 pt-2">
               No account? <button type="button" onClick={() => switchMode('register')} className="text-cyan-400 hover:underline">Create one</button>
             </p>

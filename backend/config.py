@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: Optional[str] = None
     GOOGLE_MODEL: str = "gemini-1.5-flash"
 
+    GOOGLE_CLIENT_ID: str = "219044358631-f3hlcjf3ihsii9vs01qm99ai2jn8u7ot.apps.googleusercontent.com"
+
     # HTTP
     HTTP_TIMEOUT: float = 15.0
     HTTP_MAX_REDIRECTS: int = 10

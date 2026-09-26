@@ -11,6 +11,7 @@ import type { User } from '../types';
 import {
   registerUser,
   loginUser,
+  loginWithGoogleUser,
   getCurrentUser,
   saveAuthToken,
   clearAuthToken,
@@ -24,6 +25,10 @@ interface AuthContextValue {
   login: (
     email: string,
     password: string
+  ) => Promise<{ ok: boolean; error?: string }>;
+
+  loginWithGoogle: (
+    credential: string
   ) => Promise<{ ok: boolean; error?: string }>;
 
   register: (
@@ -123,7 +128,36 @@ export function AuthProvider({
   };
 
 
-  // ── Register ───────────────────────────────────────────────────────────────
+  // ── Google Login ────────────────────────────────────────────────────────────
+  const loginWithGoogle: AuthContextValue['loginWithGoogle'] = async (
+    credential
+  ) => {
+    try {
+      const response = await loginWithGoogleUser({
+        credential,
+      });
+
+      // Store the normal CyberVerify JWT returned by our backend.
+      saveAuthToken(response.access_token);
+
+      setUser(mapAuthUserToUser(response.user));
+
+      return { ok: true };
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Google Sign-In failed.';
+
+      return {
+        ok: false,
+        error: message,
+      };
+    }
+  };
+
+
+  // ── Register ────────────────────────────────────────────────────────────────
   const register: AuthContextValue['register'] = async (
     data
   ) => {
@@ -175,6 +209,7 @@ export function AuthProvider({
       value={{
         user,
         login,
+        loginWithGoogle,
         register,
         logout,
         deleteAccount,
