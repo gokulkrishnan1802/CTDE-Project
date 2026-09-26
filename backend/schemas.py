@@ -289,7 +289,8 @@ class AnalysisResponse(BaseModel):
     apk: Optional[APKData] = None
     evidencePanel: EvidencePanelData
     digitalEvidence: Optional[dict] = None
-
+    # Module 5 — Evidence Processing & Correlation
+    evidenceProcessing: Optional[dict] = None
 # ── Report Schemas ────────────────────────────────────────────────────────────
 
 class ReportOut(BaseModel):
