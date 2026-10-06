@@ -56,6 +56,24 @@ export function generatePDFReport(inv: Investigation): void {
   addSection('Evidence Information', `Type: ${inv.evidenceType.toUpperCase()}\nValue: ${inv.evidenceValue}\nSHA256 Hash: ${inv.evidencePanel.sha256Hash}\nResolved URL: ${inv.evidencePanel.resolvedUrl}\nIP Address: ${inv.evidencePanel.ipAddress}\nHosting Provider: ${inv.evidencePanel.hostingProvider}\nCountry: ${inv.evidencePanel.country}\nRegistrar: ${inv.evidencePanel.registrar}\nSSL Status: ${inv.evidencePanel.sslStatus}\nWHOIS Status: ${inv.evidencePanel.whoisStatus}`);
 
   addSection('Evidence Summary', inv.analysis.evidenceSummary);
+  const processed = inv.analysis.evidenceProcessing;
+  if (processed) {
+    const indicatorLines = Object.entries(processed.indicators || {})
+      .map(([kind, values]) => `${kind}: ${(values || []).join(', ') || 'None'}`);
+    const relationshipLines = (processed.relationships || []).map(
+      (item) => `${item.source} — ${item.relationship.replace(/_/g, ' ')} → ${item.target}`,
+    );
+    addSection(
+      'Evidence Processing & Correlation',
+      [
+        processed.processed ? 'Processing completed.' : `Processing failed: ${processed.error || 'Unknown error'}`,
+        `Indicators: ${processed.summary?.totalIndicators ?? 0}`,
+        `Relationships: ${processed.summary?.totalRelationships ?? 0}`,
+        ...indicatorLines,
+        ...relationshipLines,
+      ].join('\n'),
+    );
+  }
   addSection('Identity Verification', inv.analysis.identityVerification);
   addSection('Domain Verification', inv.analysis.domainVerification);
   addSection('Certificate Details', inv.analysis.certificateValidation);

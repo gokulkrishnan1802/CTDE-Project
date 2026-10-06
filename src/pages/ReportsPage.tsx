@@ -44,6 +44,16 @@ export default function ReportsPage({ refreshKey }: Props) {
     const win = window.open('', '_blank');
     if (!win) return;
 
+    const processing = inv.analysis.evidenceProcessing;
+    const correlationHtml = processing
+      ? `<div class="section"><h2>Evidence Processing &amp; Correlation</h2>
+        <div class="field">Status: ${processing.processed ? 'Completed' : `Failed — ${processing.error || 'Unknown error'}`}</div>
+        <div class="field">Indicators: ${processing.summary?.totalIndicators ?? 0}</div>
+        <div class="field">Relationships: ${processing.summary?.totalRelationships ?? 0}</div>
+        <ul>${(processing.relationships || []).map((item) => `<li>${item.source} — ${item.relationship.replace(/_/g, ' ')} → ${item.target}</li>`).join('')}</ul>
+        </div>`
+      : '';
+
     win.document.write(`
       <html><head><title>${inv.caseId} Report</title>
       <style>
@@ -62,6 +72,7 @@ export default function ReportsPage({ refreshKey }: Props) {
       <div class="field"><span class="label">Evidence:</span> ${inv.evidenceType.toUpperCase()} - ${inv.evidenceValue}</div>
       <div class="field"><span class="label">Trust Score:</span> ${inv.trustScore}/100 (${inv.riskLevel})</div>
       <div class="section"><h2>Evidence Summary</h2>${inv.analysis.evidenceSummary}</div>
+      ${correlationHtml}
       <div class="section"><h2>Identity Verification</h2>${inv.analysis.identityVerification}</div>
       <div class="section"><h2>Domain Verification</h2>${inv.analysis.domainVerification}</div>
       <div class="section"><h2>Certificate Validation</h2>${inv.analysis.certificateValidation}</div>
@@ -389,6 +400,25 @@ export default function ReportsPage({ refreshKey }: Props) {
                   <ModalSection title="Evidence Summary">
                     {selected.analysis.evidenceSummary}
                   </ModalSection>
+
+                  {selected.analysis.evidenceProcessing && (
+                    <ModalSection title="Evidence Processing & Correlation">
+                      <div className="space-y-2">
+                        <p>
+                          {selected.analysis.evidenceProcessing.processed
+                            ? `${selected.analysis.evidenceProcessing.summary?.totalIndicators ?? 0} indicators and ${selected.analysis.evidenceProcessing.summary?.totalRelationships ?? 0} relationships found.`
+                            : `Processing failed: ${selected.analysis.evidenceProcessing.error || 'Unknown error'}`}
+                        </p>
+                        {(selected.analysis.evidenceProcessing.relationships || []).slice(0, 12).map((item, index) => (
+                          <p key={`${item.source}-${item.relationship}-${item.target}-${index}`} className="text-xs text-gray-500 break-all">
+                            <span className="text-gray-300">{item.source}</span>
+                            {' — '}{item.relationship.replace(/_/g, ' ')}{' → '}
+                            <span className="text-gray-300">{item.target}</span>
+                          </p>
+                        ))}
+                      </div>
+                    </ModalSection>
+                  )}
 
                   <ModalSection title="Identity Verification">
                     {selected.analysis.identityVerification}

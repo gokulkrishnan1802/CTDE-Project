@@ -1,15 +1,25 @@
 """
 CyberVerify AI
-Module 5 - Evidence Processing & Correlation
+Module 5 — Evidence Processing & Correlation
 
-This module processes the structured evidence produced by
-Module 4 and extracts common indicators and relationships.
+Purpose:
+    Process the digital evidence produced by Module 4.
 
-Module 4:
-    Digital Evidence Extraction
+Pipeline:
+    Module 4 Evidence Extraction
+        ↓
+    Normalization
+        ↓
+    Indicator Extraction
+        ↓
+    Evidence Correlation
+        ↓
+    Relationship Mapping
+        ↓
+    Investigation Summary
 
-Module 5:
-    Evidence Processing & Correlation
+This module does NOT calculate the CTDE Trust Score.
+It prepares structured forensic evidence for later modules.
 """
 
 from __future__ import annotations
@@ -20,9 +30,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-# ---------------------------------------------------------------------------
-# Regular expressions
-# ---------------------------------------------------------------------------
+# ============================================================================
+# REGEX PATTERNS
+# ============================================================================
 
 URL_PATTERN = re.compile(
     r"https?://[^\s<>'\"`]+",
@@ -42,40 +52,36 @@ IP_PATTERN = re.compile(
 )
 
 DOMAIN_PATTERN = re.compile(
-    r"\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+"
-    r"[A-Za-z]{2,63}\b"
+    r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,63}\b"
 )
 
 
-# ---------------------------------------------------------------------------
-# Basic helpers
-# ---------------------------------------------------------------------------
+# ============================================================================
+# BASIC HELPERS
+# ============================================================================
 
 def _unique(values: list[str]) -> list[str]:
-    """Remove duplicates while preserving original order."""
+    """Remove duplicates while preserving order."""
+
     seen: set[str] = set()
     result: list[str] = []
 
     for value in values:
-        if not value:
-            continue
-
         value = str(value).strip()
 
         if not value:
             continue
 
-        key = value.lower()
-
-        if key not in seen:
-            seen.add(key)
+        if value not in seen:
+            seen.add(value)
             result.append(value)
 
     return result
 
 
 def _is_valid_ip(value: str) -> bool:
-    """Return True when value is a valid IPv4 or IPv6 address."""
+    """Return True when value is a valid IPv4/IPv6 address."""
+
     try:
         ipaddress.ip_address(value)
         return True
@@ -83,68 +89,121 @@ def _is_valid_ip(value: str) -> bool:
         return False
 
 
+def _clean_url(value: str) -> str:
+    """Remove common trailing punctuation from extracted URLs."""
+
+    return value.rstrip(".,;:!?)]}\"'")
+
+
+# ============================================================================
+# INDICATOR EXTRACTION
+# ============================================================================
+
 def _extract_urls(text: str) -> list[str]:
-    """Extract HTTP/HTTPS URLs from text."""
+    """Extract HTTP/HTTPS URLs."""
+
     if not text:
         return []
-
-    urls: list[str] = []
-
-    for match in URL_PATTERN.findall(text):
-        # Remove common punctuation that can follow a URL in text.
-        cleaned = match.rstrip(".,;:!?)]}")
-
-        if cleaned:
-            urls.append(cleaned)
-
-    return _unique(urls)
-
-
-def _extract_emails(text: str) -> list[str]:
-    """Extract email addresses from text."""
-    if not text:
-        return []
-
-    return _unique(EMAIL_PATTERN.findall(text))
-
-
-def _extract_ips(text: str) -> list[str]:
-    """Extract valid IP addresses from text."""
-    if not text:
-        return []
-
-    candidates = IP_PATTERN.findall(text)
 
     return _unique(
-        [candidate for candidate in candidates if _is_valid_ip(candidate)]
+        [
+            _clean_url(match)
+            for match in URL_PATTERN.findall(text)
+        ]
     )
 
 
-def _extract_domains(text: str) -> list[str]:
-    """Extract domain names from text."""
+def _extract_emails(text: str) -> list[str]:
+    """Extract email addresses."""
+
     if not text:
         return []
 
-    domains: list[str] = []
-
-    for candidate in DOMAIN_PATTERN.findall(text):
-        # Ignore values that are actually IPv4 addresses.
-        if not _is_valid_ip(candidate):
-            domains.append(candidate.lower().rstrip("."))
-
-    return _unique(domains)
+    return _unique(
+        [
+            match.lower()
+            for match in EMAIL_PATTERN.findall(text)
+        ]
+    )
 
 
-# ---------------------------------------------------------------------------
-# Recursive text extraction
-# ---------------------------------------------------------------------------
+def _extract_ips(text: str) -> list[str]:
+    """Extract valid IP addresses."""
+
+    if not text:
+        return []
+
+    results: list[str] = []
+
+    for match in IP_PATTERN.findall(text):
+        if _is_valid_ip(match):
+            results.append(match)
+
+    return _unique(results)
+
+
+def _extract_domains(text: str) -> list[str]:
+    """
+    Extract domains while avoiding obvious false positives.
+
+    Domains belonging to URLs are also collected here because
+    Module 5 is responsible for correlation.
+    """
+
+    if not text:
+        return []
+
+    results: list[str] = []
+
+    for match in DOMAIN_PATTERN.findall(text):
+        domain = match.lower().strip(".,;:!?)]}\"'")
+
+        if not domain:
+            continue
+
+        # Ignore obvious file-like values.
+        if domain.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
+            continue
+
+        # Ignore pure IP addresses.
+        if _is_valid_ip(domain):
+            continue
+
+        results.append(domain)
+
+    return _unique(results)
+
+
+def _extract_hashes(text: str) -> list[str]:
+    """Extract SHA-256 hashes."""
+
+    if not text:
+        return []
+
+    return _unique(
+        [
+            match.lower()
+            for match in SHA256_PATTERN.findall(text)
+        ]
+    )
+
+
+# ============================================================================
+# RECURSIVE VALUE FLATTENER
+# ============================================================================
 
 def _flatten_values(value: Any) -> list[str]:
     """
-    Convert nested dictionaries/lists into searchable text values.
+    Recursively flatten dictionaries/lists into text values.
 
-    This allows Module 5 to work with different evidence structures
-    produced by URL, email, APK and QR analysis.
+    This allows Module 5 to process structures such as:
+
+        {
+            "collection": {...},
+            "extracted": {...}
+        }
+
+    without changing Module 4's original structure.
     """
 
     values: list[str] = []
@@ -152,75 +211,108 @@ def _flatten_values(value: Any) -> list[str]:
     if value is None:
         return values
 
-    if isinstance(value, str):
-        values.append(value)
-        return values
-
-    if isinstance(value, (int, float, bool)):
-        values.append(str(value))
-        return values
-
     if isinstance(value, dict):
+
         for key, item in value.items():
-            values.append(str(key))
+
+            # Preserve the key itself because some forensic indicators
+            # can be represented by field names.
+            if isinstance(key, str):
+                values.append(key)
+
             values.extend(_flatten_values(item))
 
-        return values
+    elif isinstance(value, (list, tuple, set)):
 
-    if isinstance(value, (list, tuple, set)):
         for item in value:
             values.extend(_flatten_values(item))
 
-        return values
+    else:
+        values.append(str(value))
 
     return values
 
 
-# ---------------------------------------------------------------------------
-# Evidence normalization
-# ---------------------------------------------------------------------------
+# ============================================================================
+# NORMALIZATION
+# ============================================================================
 
 def normalize_evidence(
-    evidence: dict[str, Any] | None,
-    evidence_type: str | None = None,
+    digital_evidence: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Normalize extracted evidence into a predictable structure.
+    Normalize common forensic metadata.
 
-    Module 4 remains responsible for extracting the evidence.
-    Module 5 prepares that evidence for correlation.
+    Supports both Module 4 structures:
+
+        root-level metadata
+
+    and:
+
+        digitalEvidence["collection"]
     """
 
-    evidence = evidence or {}
-
-    normalized_type = (
-        evidence_type
-        or evidence.get("evidenceType")
-        or evidence.get("type")
-        or "unknown"
+    collection = digital_evidence.get(
+        "collection",
+        {},
     )
 
-    normalized_type = str(normalized_type).lower()
+    if not isinstance(collection, dict):
+        collection = {}
+
+    def first_value(*keys: str) -> Any:
+        for key in keys:
+
+            if key in digital_evidence:
+                value = digital_evidence.get(key)
+
+                if value not in (None, ""):
+                    return value
+
+            if key in collection:
+                value = collection.get(key)
+
+                if value not in (None, ""):
+                    return value
+
+        return None
 
     return {
-        "evidenceType": normalized_type,
-        "sha256": evidence.get("sha256"),
-        "filename": evidence.get("filename"),
-        "contentType": evidence.get("contentType"),
-        "size": evidence.get("size"),
-        "raw": evidence,
+        "sha256": first_value(
+            "sha256",
+            "hash",
+            "fileHash",
+            "file_hash",
+        ),
+        "filename": first_value(
+            "filename",
+            "fileName",
+            "name",
+        ),
+        "contentType": first_value(
+            "contentType",
+            "content_type",
+            "mimeType",
+            "mime_type",
+        ),
+        "size": first_value(
+            "size",
+            "sizeBytes",
+            "fileSize",
+            "file_size",
+        ),
     }
 
 
-# ---------------------------------------------------------------------------
-# Indicator extraction
-# ---------------------------------------------------------------------------
+# ============================================================================
+# INDICATOR EXTRACTION
+# ============================================================================
 
 def extract_indicators(
-    evidence: dict[str, Any] | None,
+    digital_evidence: dict[str, Any],
 ) -> dict[str, list[str]]:
     """
-    Extract common investigation indicators from evidence.
+    Extract forensic indicators from Module 4 evidence.
 
     Indicators:
         - URLs
@@ -230,27 +322,88 @@ def extract_indicators(
         - SHA-256 hashes
     """
 
-    evidence = evidence or {}
+    flattened = _flatten_values(
+        digital_evidence
+    )
 
-    text_parts = _flatten_values(evidence)
-    combined_text = "\n".join(text_parts)
+    combined_text = " ".join(flattened)
 
-    urls = _extract_urls(combined_text)
-    domains = _extract_domains(combined_text)
-    ips = _extract_ips(combined_text)
-    emails = _extract_emails(combined_text)
+    urls = _extract_urls(
+        combined_text
+    )
 
-    hashes: list[str] = []
+    emails = _extract_emails(
+        combined_text
+    )
 
-    for match in SHA256_PATTERN.findall(combined_text):
-        hashes.append(match.lower())
+    ips = _extract_ips(
+        combined_text
+    )
 
-    # Explicit SHA-256 fields should also be captured.
-    for key in ("sha256", "hash", "fileHash", "file_hash"):
-        value = evidence.get(key)
+    domains = _extract_domains(
+        combined_text
+    )
 
-        if isinstance(value, str) and SHA256_PATTERN.fullmatch(value.strip()):
-            hashes.append(value.strip().lower())
+    hashes = _extract_hashes(
+        combined_text
+    )
+
+    # ------------------------------------------------------------------------
+    # Explicit URL hostname extraction
+    # ------------------------------------------------------------------------
+
+    for url in urls:
+
+        try:
+            parsed = urlparse(url)
+
+            hostname = (
+                parsed.hostname
+                or ""
+            ).lower()
+
+            if hostname and not _is_valid_ip(hostname):
+                domains.append(hostname)
+
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------------
+    # Explicit email-domain extraction
+    # ------------------------------------------------------------------------
+
+    for email in emails:
+
+        if "@" in email:
+
+            domain = (
+                email.split("@", 1)[1]
+                .lower()
+                .strip()
+            )
+
+            if domain:
+                domains.append(domain)
+
+    # ------------------------------------------------------------------------
+    # Explicit Module 4 SHA-256 metadata
+    # ------------------------------------------------------------------------
+
+    normalized = normalize_evidence(
+        digital_evidence
+    )
+
+    sha256 = normalized.get("sha256")
+
+    if sha256:
+        sha256_text = str(sha256).strip().lower()
+
+        if SHA256_PATTERN.fullmatch(
+            sha256_text
+        ):
+            hashes.append(
+                sha256_text
+            )
 
     return {
         "urls": _unique(urls),
@@ -261,50 +414,64 @@ def extract_indicators(
     }
 
 
-# ---------------------------------------------------------------------------
-# Relationship creation
-# ---------------------------------------------------------------------------
+# ============================================================================
+# RELATIONSHIP BUILDING
+# ============================================================================
 
 def build_relationships(
-    evidence: dict[str, Any] | None,
-    indicators: dict[str, list[str]] | None = None,
-) -> list[dict[str, Any]]:
+    indicators: dict[str, list[str]],
+    evidence_type: str | None = None,
+    normalized: dict[str, Any] | None = None,
+) -> list[dict[str, str]]:
     """
-    Build simple relationships between the evidence and its indicators.
+    Build relationships between extracted forensic indicators.
 
     Examples:
-        Evidence -> SHA-256
-        Evidence -> URL
-        URL -> Domain
-        URL -> IP
-        Email -> Domain
+
+        URL → domain
+
+        Email → domain
+
+        Evidence → SHA-256
+
+        Evidence → URL
+
+        Evidence → IP
     """
 
-    evidence = evidence or {}
-    indicators = indicators or extract_indicators(evidence)
+    relationships: list[dict[str, str]] = []
 
-    relationships: list[dict[str, Any]] = []
+    evidence_type = (
+        evidence_type or "unknown"
+    ).lower()
 
-    evidence_type = str(
-        evidence.get("evidenceType")
-        or evidence.get("type")
-        or "unknown"
-    )
+    # ------------------------------------------------------------------------
+    # Evidence → SHA-256
+    # ------------------------------------------------------------------------
 
-    sha256 = evidence.get("sha256")
+    for sha256 in indicators.get(
+        "sha256",
+        [],
+    ):
 
-    if sha256:
         relationships.append(
             {
                 "source": evidence_type,
-                "relationship": "identified_by",
+                "relationship": "identified_by_sha256",
                 "targetType": "sha256",
-                "target": str(sha256),
+                "target": sha256,
             }
         )
 
-    # Evidence -> URL
-    for url in indicators.get("urls", []):
+    # ------------------------------------------------------------------------
+    # Evidence → URL
+    # ------------------------------------------------------------------------
+
+    for url in indicators.get(
+        "urls",
+        [],
+    ):
+
         relationships.append(
             {
                 "source": evidence_type,
@@ -314,26 +481,54 @@ def build_relationships(
             }
         )
 
-        # URL -> Domain
+    # ------------------------------------------------------------------------
+    # URL → Domain
+    # ------------------------------------------------------------------------
+
+    for url in indicators.get(
+        "urls",
+        [],
+    ):
+
         try:
-            parsed = urlparse(url)
-            hostname = parsed.hostname
+            hostname = (
+                urlparse(url).hostname
+                or ""
+            ).lower()
 
             if hostname:
+
+                target_type = (
+                    "ip"
+                    if _is_valid_ip(hostname)
+                    else "domain"
+                )
+
                 relationships.append(
                     {
                         "source": url,
-                        "relationship": "resolves_to_domain",
-                        "targetType": "domain",
-                        "target": hostname.lower(),
+                        "relationship": (
+                            "resolves_to_ip"
+                            if target_type == "ip"
+                            else "resolves_to_domain"
+                        ),
+                        "targetType": target_type,
+                        "target": hostname,
                     }
                 )
 
-        except ValueError:
-            pass
+        except Exception:
+            continue
 
-    # Evidence -> Domain
-    for domain in indicators.get("domains", []):
+    # ------------------------------------------------------------------------
+    # Evidence → Domain
+    # ------------------------------------------------------------------------
+
+    for domain in indicators.get(
+        "domains",
+        [],
+    ):
+
         relationships.append(
             {
                 "source": evidence_type,
@@ -343,8 +538,15 @@ def build_relationships(
             }
         )
 
-    # Evidence -> IP
-    for ip in indicators.get("ipAddresses", []):
+    # ------------------------------------------------------------------------
+    # Evidence → IP
+    # ------------------------------------------------------------------------
+
+    for ip in indicators.get(
+        "ipAddresses",
+        [],
+    ):
+
         relationships.append(
             {
                 "source": evidence_type,
@@ -354,8 +556,15 @@ def build_relationships(
             }
         )
 
-    # Evidence -> Email
-    for email in indicators.get("emailAddresses", []):
+    # ------------------------------------------------------------------------
+    # Evidence → Email
+    # ------------------------------------------------------------------------
+
+    for email in indicators.get(
+        "emailAddresses",
+        [],
+    ):
+
         relationships.append(
             {
                 "source": evidence_type,
@@ -365,40 +574,78 @@ def build_relationships(
             }
         )
 
-    return relationships
+        if "@" in email:
+
+            domain = (
+                email.split("@", 1)[1]
+                .lower()
+                .strip()
+            )
+
+            if domain:
+
+                relationships.append(
+                    {
+                        "source": email,
+                        "relationship": "belongs_to_domain",
+                        "targetType": "domain",
+                        "target": domain,
+                    }
+                )
+
+    # ------------------------------------------------------------------------
+    # Remove duplicate relationships
+    # ------------------------------------------------------------------------
+
+    unique_relationships: list[
+        dict[str, str]
+    ] = []
+
+    seen: set[
+        tuple[str, str, str, str]
+    ] = set()
+
+    for relationship in relationships:
+
+        key = (
+            relationship.get(
+                "source",
+                "",
+            ),
+            relationship.get(
+                "relationship",
+                "",
+            ),
+            relationship.get(
+                "targetType",
+                "",
+            ),
+            relationship.get(
+                "target",
+                "",
+            ),
+        )
+
+        if key not in seen:
+
+            seen.add(key)
+
+            unique_relationships.append(
+                relationship
+            )
+
+    return unique_relationships
 
 
-# ---------------------------------------------------------------------------
-# Main processing function
-# ---------------------------------------------------------------------------
+# ============================================================================
+# INVESTIGATION SUMMARY
+# ============================================================================
 
-def process_evidence(
-    evidence: dict[str, Any] | None,
-    evidence_type: str | None = None,
+def _build_summary(
+    evidence_type: str,
+    indicators: dict[str, list[str]],
+    relationships: list[dict[str, str]],
 ) -> dict[str, Any]:
-    """
-    Main Module 5 entry point.
-
-    Takes evidence extracted by Module 4 and returns:
-        - normalized evidence
-        - extracted indicators
-        - relationships
-        - processing summary
-    """
-
-    normalized = normalize_evidence(
-        evidence=evidence,
-        evidence_type=evidence_type,
-    )
-
-    indicators = extract_indicators(
-        normalized["raw"],
-    )
-
-    relationships = build_relationships(
-        normalized["raw"],
-        indicators,
-    )
 
     total_indicators = sum(
         len(values)
@@ -406,18 +653,135 @@ def process_evidence(
     )
 
     return {
-        "evidenceType": normalized["evidenceType"],
-        "normalizedEvidence": {
-            "sha256": normalized["sha256"],
-            "filename": normalized["filename"],
-            "contentType": normalized["contentType"],
-            "size": normalized["size"],
+        "processed": True,
+        "evidenceType": evidence_type,
+        "totalIndicators": total_indicators,
+        "totalRelationships": len(
+            relationships
+        ),
+        "indicatorTypes": {
+            "urls": len(
+                indicators.get(
+                    "urls",
+                    [],
+                )
+            ),
+            "domains": len(
+                indicators.get(
+                    "domains",
+                    [],
+                )
+            ),
+            "ipAddresses": len(
+                indicators.get(
+                    "ipAddresses",
+                    [],
+                )
+            ),
+            "emailAddresses": len(
+                indicators.get(
+                    "emailAddresses",
+                    [],
+                )
+            ),
+            "sha256": len(
+                indicators.get(
+                    "sha256",
+                    [],
+                )
+            ),
         },
+        "description": (
+            "Digital evidence was normalized, "
+            "indicators were extracted, and "
+            "relationships were correlated."
+        ),
+    }
+
+
+# ============================================================================
+# MAIN MODULE 5 PROCESSOR
+# ============================================================================
+
+def process_evidence(
+    digital_evidence: dict[str, Any],
+    evidence_type: str | None = None,
+) -> dict[str, Any]:
+    """
+    Main Module 5 entry point.
+
+    Input:
+        Module 4 digitalEvidence
+
+    Output:
+        normalized evidence
+        indicators
+        relationships
+        summary
+    """
+
+    if not isinstance(
+        digital_evidence,
+        dict,
+    ):
+        return {
+            "processed": False,
+            "evidenceType": (
+                evidence_type
+                or "unknown"
+            ),
+            "normalizedEvidence": {},
+            "indicators": {
+                "urls": [],
+                "domains": [],
+                "ipAddresses": [],
+                "emailAddresses": [],
+                "sha256": [],
+            },
+            "relationships": [],
+            "summary": {
+                "processed": False,
+                "totalIndicators": 0,
+                "totalRelationships": 0,
+            },
+            "error": (
+                "Digital evidence must be a dictionary."
+            ),
+        }
+
+    resolved_type = (
+        evidence_type
+        or digital_evidence.get(
+            "evidenceType"
+        )
+        or "unknown"
+    )
+
+    normalized = normalize_evidence(
+        digital_evidence
+    )
+
+    indicators = extract_indicators(
+        digital_evidence
+    )
+
+    relationships = build_relationships(
+        indicators,
+        evidence_type=resolved_type,
+        normalized=normalized,
+    )
+
+    summary = _build_summary(
+        resolved_type,
+        indicators,
+        relationships,
+    )
+
+    return {
+        "processed": True,
+        "evidenceType": resolved_type,
+        "normalizedEvidence": normalized,
         "indicators": indicators,
         "relationships": relationships,
-        "summary": {
-            "totalIndicators": total_indicators,
-            "totalRelationships": len(relationships),
-            "processed": True,
-        },
+        "summary": summary,
     }

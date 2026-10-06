@@ -63,6 +63,32 @@ export interface Investigation {
   analysis: AnalysisResult;
 }
 
+export interface EvidenceProcessing {
+  processed: boolean;
+  evidenceType?: string;
+  normalizedEvidence?: Record<string, unknown>;
+  indicators?: {
+    urls?: string[];
+    domains?: string[];
+    ipAddresses?: string[];
+    emailAddresses?: string[];
+    sha256?: string[];
+  };
+  relationships?: Array<{
+    source: string;
+    relationship: string;
+    targetType: string;
+    target: string;
+  }>;
+  summary?: {
+    processed?: boolean;
+    totalIndicators?: number;
+    totalRelationships?: number;
+    description?: string;
+  };
+  error?: string;
+}
+
 export interface AnalysisResult {
   evidenceSummary: string;
   identityVerification: string;
@@ -105,6 +131,7 @@ export interface AnalysisResult {
   recommendations: string[];
 
   scoreBreakdown?: ScoreBreakdown[];
+  evidenceProcessing?: EvidenceProcessing | null;
 
   email?: {
   spf: string;

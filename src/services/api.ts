@@ -1,5 +1,6 @@
 import type {
   AnalysisResult,
+  EvidenceProcessing,
   EvidencePanel,
   RiskLevel,
   ScoreBreakdown,
@@ -26,11 +27,11 @@ async function request<T>(
 
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
         ...(options.headers || {}),
       },
-      ...options,
     });
   } catch {
     throw new ApiError(
@@ -107,6 +108,11 @@ export function saveAuthToken(token: string): void {
 
 export function clearAuthToken(): void {
   localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export async function registerUser(
@@ -319,6 +325,8 @@ export interface BackendAnalysisResponse {
   qr?: BackendQR;
   email?: BackendEmail;
   apk?: BackendAPK;
+  digitalEvidence?: Record<string, unknown>;
+  evidenceProcessing?: EvidenceProcessing | null;
 
   evidencePanel: BackendEvidencePanel;
 }
@@ -337,6 +345,7 @@ export async function postAnalyze(
 ): Promise<BackendAnalysisResponse> {
   return request<BackendAnalysisResponse>('/analyze', {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
 }
@@ -358,6 +367,7 @@ export async function postAnalyzeEmailHeaders(
 
   return request<BackendAnalysisResponse>('/analyze/email', {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       rawHeaders: rawHeaders.trim(),
     }),
@@ -453,6 +463,7 @@ export function mapBackendResponse(
         points: factor.points,
       })
     ),
+    evidenceProcessing: res.evidenceProcessing,
 
     // ─────────────────────────────────────────────
     // EMAIL STRUCTURED DATA
@@ -531,6 +542,7 @@ export async function postAnalyzeQr(
       `${API_BASE_URL}/analyze/qr`,
       {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData,
       }
     );
@@ -580,6 +592,7 @@ export async function postAnalyzeApk(
       `${API_BASE_URL}/analyze/apk`,
       {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData,
       }
     );

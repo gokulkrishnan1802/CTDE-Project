@@ -41,6 +41,7 @@ def generate_pdf_report(investigation_data: dict, investigation_id: str) -> str:
         from reportlab.lib import colors
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
         from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+        from xml.sax.saxutils import escape
 
         reports_dir = ensure_reports_dir()
         filename = f"CTDE_{investigation_id}_{_timestamp()}.pdf"
@@ -104,6 +105,31 @@ def generate_pdf_report(investigation_data: dict, investigation_id: str) -> str:
             story.append(Spacer(1, 3 * mm))
 
         add_section("Evidence Summary", ev.get("evidenceSummary", "N/A"))
+        processing = ev.get("evidenceProcessing") or {}
+        if processing:
+            indicators = processing.get("indicators") or {}
+            relationships = processing.get("relationships") or []
+            processing_lines = [
+                f"Status: {'Completed' if processing.get('processed') else 'Failed'}",
+                f"Indicators: {(processing.get('summary') or {}).get('totalIndicators', 0)}",
+                f"Relationships: {(processing.get('summary') or {}).get('totalRelationships', 0)}",
+            ]
+            if processing.get("error"):
+                processing_lines.append(f"Error: {processing['error']}")
+            processing_lines.extend(
+                f"{kind}: {', '.join(values) if values else 'None'}"
+                for kind, values in indicators.items()
+            )
+            processing_lines.extend(
+                f"{item.get('source', 'Unknown')} — "
+                f"{str(item.get('relationship', 'related')).replace('_', ' ')} → "
+                f"{item.get('target', 'Unknown')}"
+                for item in relationships
+            )
+            add_section(
+                "Evidence Processing & Correlation",
+                escape("\n".join(processing_lines)),
+            )
         add_section("Identity Verification", ev.get("identityVerification", "N/A"))
         add_section("Domain Verification", ev.get("domainVerification", "N/A"))
         add_section("Certificate Validation", ev.get("certificateValidation", "N/A"))

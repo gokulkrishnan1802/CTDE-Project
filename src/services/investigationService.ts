@@ -48,6 +48,7 @@ async function buildInvestigationResult(
     'WHOIS Completed',
     'Reputation Checked',
     'MITRE Mapping Completed',
+    'Evidence Normalized & Correlated',
     'AI Summary Generated',
     'Investigation Completed',
   ];

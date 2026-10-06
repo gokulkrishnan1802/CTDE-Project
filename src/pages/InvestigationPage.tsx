@@ -1284,6 +1284,74 @@ function ResultStep(props: {
         </p>
       </section>
 
+      {analysis.evidenceProcessing && (
+        <section className="rounded-2xl border border-cyan-500/15 bg-[#0f1620] p-6">
+          <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+            <Fingerprint className="w-4 h-4 text-cyan-400" />
+            Evidence Processing &amp; Correlation
+          </h3>
+          {analysis.evidenceProcessing.processed ? (
+            <>
+              <p className="text-sm text-gray-500 leading-relaxed mt-3">
+                {analysis.evidenceProcessing.summary?.description ||
+                  'Extracted indicators and their relationships from the submitted evidence.'}
+              </p>
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="rounded-lg border border-gray-800 bg-[#0a0e14] p-3">
+                  <p className="text-[9px] font-mono uppercase tracking-wider text-gray-600">Indicators</p>
+                  <p className="text-lg font-semibold text-gray-200 mt-1">
+                    {analysis.evidenceProcessing.summary?.totalIndicators ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-800 bg-[#0a0e14] p-3">
+                  <p className="text-[9px] font-mono uppercase tracking-wider text-gray-600">Relationships</p>
+                  <p className="text-lg font-semibold text-gray-200 mt-1">
+                    {analysis.evidenceProcessing.summary?.totalRelationships ?? 0}
+                  </p>
+                </div>
+              </div>
+              {Object.entries(analysis.evidenceProcessing.indicators || {}).some(([, values]) => values?.length) && (
+                <div className="mt-4 space-y-3">
+                  {Object.entries(analysis.evidenceProcessing.indicators || {}).map(([kind, values]) => values?.length ? (
+                    <div key={kind}>
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-gray-600 mb-1.5">
+                        {kind.replace(/([A-Z])/g, ' $1')}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {values.slice(0, 12).map((value) => (
+                          <span key={`${kind}-${value}`} className="max-w-full break-all text-xs font-mono px-2.5 py-1.5 rounded-lg bg-[#0a0e14] border border-gray-800 text-gray-400">
+                            {value}
+                          </span>
+                        ))}
+                        {values.length > 12 && <span className="text-xs text-gray-600">+{values.length - 12} more</span>}
+                      </div>
+                    </div>
+                  ) : null)}
+                </div>
+              )}
+              {!!analysis.evidenceProcessing.relationships?.length && (
+                <div className="mt-4">
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-gray-600 mb-2">Related evidence</p>
+                  <ul className="space-y-2">
+                    {analysis.evidenceProcessing.relationships.slice(0, 10).map((relationship, index) => (
+                      <li key={`${relationship.source}-${relationship.relationship}-${relationship.target}-${index}`} className="text-xs text-gray-400 break-all">
+                        <span className="text-gray-300">{relationship.source}</span>
+                        <span className="text-cyan-500"> — {relationship.relationship.replace(/_/g, ' ')} → </span>
+                        <span className="text-gray-300">{relationship.target}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-amber-400/80 mt-3">
+              Evidence processing could not be completed{analysis.evidenceProcessing.error ? `: ${analysis.evidenceProcessing.error}` : '.'}
+            </p>
+          )}
+        </section>
+      )}
+
       {/* =========================================================
           SIMPLE EXPLANATION
       ========================================================= */}

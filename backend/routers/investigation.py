@@ -78,13 +78,27 @@ def _apply_evidence_processing(result: AnalysisResponse) -> AnalysisResponse:
     """
 
     digital_evidence = getattr(result, "digitalEvidence", None)
-    print("MODULE 5 CALLED:", bool(digital_evidence))
     if not digital_evidence:
         return result
 
     try:
+        # Include the preserved evidence hash even when a Module 4 extractor
+        # stores it separately from digitalEvidence (for example, URL/email).
+        processing_evidence = dict(digital_evidence)
+        collection = processing_evidence.get("collection")
+        collection = dict(collection) if isinstance(collection, dict) else {}
+        evidence_hash = getattr(
+            getattr(result, "evidencePanel", None),
+            "sha256Hash",
+            None,
+        )
+        if evidence_hash:
+            collection.setdefault("sha256", evidence_hash)
+        if collection:
+            processing_evidence["collection"] = collection
+
         processed_evidence = process_evidence(
-            digital_evidence,
+            processing_evidence,
             evidence_type=result.evidenceType,
         )
 
@@ -103,6 +117,35 @@ def _apply_evidence_processing(result: AnalysisResponse) -> AnalysisResponse:
         }
 
     return result
+
+
+def _persist_investigation(
+    db: Session,
+    current_user: User | None,
+    result: AnalysisResponse,
+    evidence_type: str,
+    evidence_value: str,
+) -> None:
+    """Persist the completed response, including Module 5 output, for signed-in users."""
+    if not current_user:
+        return
+
+    try:
+        inv = Investigation(
+            case_id=_generate_case_id(db),
+            user_id=current_user.id,
+            evidence_type=evidence_type,
+            evidence_value=evidence_value,
+            trust_score=result.trustScore,
+            risk_level=result.riskLevel,
+            confidence=result.confidence,
+            result_json=result.model_dump(),
+        )
+        db.add(inv)
+        db.commit()
+    except Exception as exc:
+        logger.warning("Failed to persist investigation: %s", exc)
+        db.rollback()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN ANALYSIS ENDPOINT
@@ -161,30 +204,13 @@ async def analyze(
             detail=f"Investigation failed: {exc}",
         )
 
+    # Module 5 runs before persistence so the response and saved history match.
+    result = _apply_evidence_processing(result)
+
     # ── Persist authenticated investigation ──────────────────────────────────
-
-    if current_user:
-        try:
-            inv = Investigation(
-                case_id=_generate_case_id(db),
-                user_id=current_user.id,
-                evidence_type=evidence_type,
-                evidence_value=evidence_value,
-                trust_score=result.trustScore,
-                risk_level=result.riskLevel,
-                confidence=result.confidence,
-                result_json=result.model_dump(),
-            )
-
-            db.add(inv)
-            db.commit()
-
-        except Exception as exc:
-            logger.warning(
-                "Failed to persist investigation: %s",
-                exc,
-            )
-            db.rollback()
+    _persist_investigation(
+        db, current_user, result, evidence_type, evidence_value
+    )
 
     return result
     
@@ -755,7 +781,7 @@ async def analyze_email_headers(
         # FINAL RESPONSE
         # --------------------------------------------------------------
 
-        return AnalysisResponse(
+        result = AnalysisResponse(
             evidenceType="email",
             evidenceValue=(
                 sender_email
@@ -854,6 +880,16 @@ async def analyze_email_headers(
 
             evidencePanel=evidence_panel,
         )
+
+        result = _apply_evidence_processing(result)
+        _persist_investigation(
+            db,
+            current_user,
+            result,
+            "email",
+            result.evidenceValue,
+        )
+        return result
 
     except HTTPException:
         raise
@@ -1767,24 +1803,14 @@ async def analyze_apk_file(
             ),
         )
 
-        if current_user:
-            try:
-                inv = Investigation(
-                    case_id=_generate_case_id(db),
-                    user_id=current_user.id,
-                    evidence_type="apk",
-                    evidence_value=file.filename,
-                    trust_score=result.trustScore,
-                    risk_level=result.riskLevel,
-                    confidence=result.confidence,
-                    result_json=result.model_dump(),
-                )
-                db.add(inv)
-                db.commit()
-            except Exception as exc:
-                logger.warning("Failed to persist APK investigation: %s", exc)
-                db.rollback()
         result = _apply_evidence_processing(result)
+        _persist_investigation(
+            db,
+            current_user,
+            result,
+            "apk",
+            file.filename or "uploaded-apk",
+        )
         return result
         
     except HTTPException:
@@ -2702,7 +2728,14 @@ async def analyze_qr_image(
             decoded_content,
             source_file_metadata=qr_file_metadata,
         )
-
+        result = _apply_evidence_processing(result)
+        _persist_investigation(
+            db,
+            current_user,
+            result,
+            "qr",
+            result.evidenceValue or file.filename,
+        )
         return result
 
     except Exception as exc:
