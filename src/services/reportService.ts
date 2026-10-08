@@ -61,8 +61,21 @@ export function generatePDFReport(inv: Investigation): void {
     const indicatorLines = Object.entries(processed.indicators || {})
       .map(([kind, values]) => `${kind}: ${(values || []).join(', ') || 'None'}`);
     const relationshipLines = (processed.relationships || []).map(
-      (item) => `${item.source} — ${item.relationship.replace(/_/g, ' ')} → ${item.target}`,
+      (item) => `${item.source} -> ${item.relationship.replace(/_/g, ' ')} -> ${item.target}`,
     );
+    const crossCorrelation = processed.crossInvestigationCorrelation;
+    const crossCorrelationLines = crossCorrelation
+      ? [
+          `Cross-investigation status: ${crossCorrelation.status}`,
+          `Prior investigations searched: ${crossCorrelation.searchedInvestigations}`,
+          `Prior investigation matches: ${crossCorrelation.matchCount}`,
+          ...crossCorrelation.matches.map((match) =>
+            `${match.caseId} (${match.evidenceType}, ${match.riskLevel}) shared: ${match.matchingIndicators
+              .map((item) => `${item.type}: ${item.value}`)
+              .join(', ')}`,
+          ),
+        ]
+      : [];
     addSection(
       'Evidence Processing & Correlation',
       [
@@ -71,6 +84,7 @@ export function generatePDFReport(inv: Investigation): void {
         `Relationships: ${processed.summary?.totalRelationships ?? 0}`,
         ...indicatorLines,
         ...relationshipLines,
+        ...crossCorrelationLines,
       ].join('\n'),
     );
   }

@@ -420,6 +420,30 @@ export default function ReportsPage({ refreshKey }: Props) {
                     </ModalSection>
                   )}
 
+                  {selected.analysis.evidenceProcessing?.crossInvestigationCorrelation && (
+                    <ModalSection title="Cross-investigation matches">
+                      <div className="space-y-2">
+                        {selected.analysis.evidenceProcessing.crossInvestigationCorrelation.matches.length ? (
+                          selected.analysis.evidenceProcessing.crossInvestigationCorrelation.matches.map((match) => (
+                            <p key={match.investigationId} className="text-xs text-gray-500 break-all">
+                              <span className="text-gray-300">{match.caseId}</span>
+                              {' — shared indicators: '}
+                              {match.matchingIndicators.map((item) => `${item.type}: ${item.value}`).join(', ')}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-xs text-gray-500">
+                            {selected.analysis.evidenceProcessing.crossInvestigationCorrelation.status === 'authentication_required'
+                              ? 'Sign in to compare against your investigation history.'
+                              : selected.analysis.evidenceProcessing.crossInvestigationCorrelation.status === 'unavailable'
+                                ? 'History correlation was unavailable for this investigation.'
+                                : `No prior matches across ${selected.analysis.evidenceProcessing.crossInvestigationCorrelation.searchedInvestigations} investigations.`}
+                          </p>
+                        )}
+                      </div>
+                    </ModalSection>
+                  )}
+
                   <ModalSection title="Identity Verification">
                     {selected.analysis.identityVerification}
                   </ModalSection>

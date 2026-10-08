@@ -785,3 +785,145 @@ def process_evidence(
         "relationships": relationships,
         "summary": summary,
     }
+
+
+def correlate_with_prior_investigations(
+    current_indicators: dict[str, Any],
+    prior_investigations: list[Any],
+) -> dict[str, Any]:
+    """Match this evidence's indicators against prior investigations.
+
+    The caller must scope ``prior_investigations`` to the authenticated user.
+    Historical rows from before Module 5 are processed on demand when possible.
+    """
+    indicator_types = (
+        "urls",
+        "domains",
+        "ipAddresses",
+        "emailAddresses",
+        "sha256",
+    )
+
+    current_values: dict[str, dict[str, str]] = {}
+    for indicator_type in indicator_types:
+        values = current_indicators.get(indicator_type, [])
+        if not isinstance(values, list):
+            continue
+        current_values[indicator_type] = {
+            str(value).strip().casefold(): str(value).strip()
+            for value in values
+            if str(value).strip()
+        }
+
+    matches: list[dict[str, Any]] = []
+    cross_relationships: list[dict[str, str]] = []
+
+    for investigation in prior_investigations:
+        result_data = getattr(investigation, "result_json", None)
+        if not isinstance(result_data, dict):
+            continue
+
+        prior_processing = result_data.get("evidenceProcessing")
+        prior_indicators = (
+            prior_processing.get("indicators")
+            if isinstance(prior_processing, dict)
+            else None
+        )
+
+        if not isinstance(prior_indicators, dict):
+            digital_evidence = result_data.get("digitalEvidence")
+            if isinstance(digital_evidence, dict):
+                processing_evidence = dict(digital_evidence)
+                evidence_panel = result_data.get("evidencePanel")
+                sha256 = (
+                    evidence_panel.get("sha256Hash")
+                    if isinstance(evidence_panel, dict)
+                    else None
+                )
+                if sha256:
+                    collection = processing_evidence.get("collection")
+                    collection = (
+                        dict(collection)
+                        if isinstance(collection, dict)
+                        else {}
+                    )
+                    collection.setdefault("sha256", sha256)
+                    processing_evidence["collection"] = collection
+
+                prior_processing = process_evidence(
+                    processing_evidence,
+                    evidence_type=getattr(
+                        investigation,
+                        "evidence_type",
+                        "unknown",
+                    ),
+                )
+                prior_indicators = prior_processing.get("indicators", {})
+
+        if not isinstance(prior_indicators, dict):
+            continue
+
+        matching_indicators: list[dict[str, str]] = []
+        for indicator_type in indicator_types:
+            current_type_values = current_values.get(indicator_type, {})
+            prior_values = prior_indicators.get(indicator_type, [])
+            if not isinstance(prior_values, list):
+                continue
+
+            prior_keys = {
+                str(value).strip().casefold()
+                for value in prior_values
+                if str(value).strip()
+            }
+            for key in current_type_values.keys() & prior_keys:
+                matching_indicators.append(
+                    {
+                        "type": indicator_type,
+                        "value": current_type_values[key],
+                    }
+                )
+
+        if not matching_indicators:
+            continue
+
+        case_id = str(getattr(investigation, "case_id", ""))
+        investigation_id = str(getattr(investigation, "id", ""))
+        created_at = getattr(investigation, "created_at", None)
+        evidence_type = str(
+            getattr(investigation, "evidence_type", "unknown")
+        )
+        risk_level = str(getattr(investigation, "risk_level", "unknown"))
+
+        matches.append(
+            {
+                "caseId": case_id,
+                "investigationId": investigation_id,
+                "evidenceType": evidence_type,
+                "riskLevel": risk_level,
+                "createdAt": (
+                    created_at.isoformat()
+                    if hasattr(created_at, "isoformat")
+                    else None
+                ),
+                "matchingIndicators": matching_indicators,
+            }
+        )
+
+        for indicator in matching_indicators:
+            cross_relationships.append(
+                {
+                    "source": f"{indicator['type']}:{indicator['value']}",
+                    "relationship": "also_seen_in_prior_investigation",
+                    "targetType": "investigation",
+                    "target": case_id,
+                    "indicatorType": indicator["type"],
+                    "indicator": indicator["value"],
+                }
+            )
+
+    return {
+        "matches": matches,
+        "relationships": cross_relationships,
+        "matchCount": len(matches),
+        "indicatorMatchCount": len(cross_relationships),
+    }

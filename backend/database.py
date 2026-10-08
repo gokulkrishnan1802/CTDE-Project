@@ -59,16 +59,22 @@ def init_db():
             )
     elif engine.dialect.name == "postgresql":
         with engine.begin() as connection:
-            connection.execute(text(
-                "ALTER TABLE public.users "
-                "ADD COLUMN IF NOT EXISTS auth_provider "
-                "VARCHAR(20) NOT NULL DEFAULT 'local'"
-            ))
-            connection.execute(text(
-                "ALTER TABLE public.users "
-                "ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)"
-            ))
-            connection.execute(text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id "
-                "ON public.users (google_id)"
-            ))
+            connection.execute(
+                text(
+                    "ALTER TABLE public.users "
+                    "ADD COLUMN IF NOT EXISTS auth_provider "
+                    "VARCHAR(20) NOT NULL DEFAULT 'local'"
+                )
+            )
+            connection.execute(
+                text(
+                    "ALTER TABLE public.users "
+                    "ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)"
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id "
+                    "ON public.users (google_id)"
+                )
+            )

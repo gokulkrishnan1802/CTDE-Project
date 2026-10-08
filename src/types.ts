@@ -86,6 +86,23 @@ export interface EvidenceProcessing {
     totalRelationships?: number;
     description?: string;
   };
+  crossInvestigationCorrelation?: {
+    enabled: boolean;
+    status: string;
+    lookbackLimit: number;
+    searchedInvestigations: number;
+    lookbackTruncated?: boolean;
+    matchCount: number;
+    indicatorMatchCount: number;
+    matches: Array<{
+      caseId: string;
+      investigationId: string;
+      evidenceType: string;
+      riskLevel: string;
+      createdAt: string | null;
+      matchingIndicators: Array<{ type: string; value: string }>;
+    }>;
+  };
   error?: string;
 }
 

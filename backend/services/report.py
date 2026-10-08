@@ -121,11 +121,37 @@ def generate_pdf_report(investigation_data: dict, investigation_id: str) -> str:
                 for kind, values in indicators.items()
             )
             processing_lines.extend(
-                f"{item.get('source', 'Unknown')} — "
-                f"{str(item.get('relationship', 'related')).replace('_', ' ')} → "
+                f"{item.get('source', 'Unknown')} -> "
+                f"{str(item.get('relationship', 'related')).replace('_', ' ')} -> "
                 f"{item.get('target', 'Unknown')}"
                 for item in relationships
             )
+            cross_correlation = processing.get(
+                "crossInvestigationCorrelation"
+            ) or {}
+            if cross_correlation:
+                processing_lines.append(
+                    "Cross-investigation status: "
+                    f"{cross_correlation.get('status', 'unknown')}"
+                )
+                processing_lines.append(
+                    "Prior investigations searched: "
+                    f"{cross_correlation.get('searchedInvestigations', 0)}"
+                )
+                processing_lines.append(
+                    "Prior investigation matches: "
+                    f"{cross_correlation.get('matchCount', 0)}"
+                )
+                for match in cross_correlation.get("matches", []):
+                    shared = ", ".join(
+                        f"{item.get('type', 'indicator')}: {item.get('value', '')}"
+                        for item in match.get("matchingIndicators", [])
+                    )
+                    processing_lines.append(
+                        f"{match.get('caseId', 'Unknown case')} "
+                        f"({match.get('evidenceType', 'unknown')}, "
+                        f"{match.get('riskLevel', 'unknown')}) shared: {shared}"
+                    )
             add_section(
                 "Evidence Processing & Correlation",
                 escape("\n".join(processing_lines)),

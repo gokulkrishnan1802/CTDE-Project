@@ -1343,6 +1343,42 @@ function ResultStep(props: {
                   </ul>
                 </div>
               )}
+              {analysis.evidenceProcessing.crossInvestigationCorrelation && (
+                <div className="mt-4 rounded-xl border border-gray-800 bg-[#0a0e14] p-4">
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-2">
+                    Cross-investigation matches
+                  </p>
+                  {analysis.evidenceProcessing.crossInvestigationCorrelation.status === 'authentication_required' ? (
+                    <p className="text-xs text-gray-500">
+                      Sign in to compare these indicators with your investigation history.
+                    </p>
+                  ) : analysis.evidenceProcessing.crossInvestigationCorrelation.status === 'unavailable' ? (
+                    <p className="text-xs text-amber-400/80">
+                      History correlation is temporarily unavailable. Evidence processing completed for this item.
+                    </p>
+                  ) : analysis.evidenceProcessing.crossInvestigationCorrelation.matches.length ? (
+                    <div className="space-y-2">
+                      {analysis.evidenceProcessing.crossInvestigationCorrelation.matches.map((match) => (
+                        <div key={match.investigationId} className="rounded-lg border border-gray-800/80 p-3">
+                          <p className="text-xs text-gray-200">
+                            {match.caseId} <span className="text-gray-500">({match.evidenceType}, {match.riskLevel})</span>
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500 break-all">
+                            Shared indicators: {match.matchingIndicators.map((item) => `${item.type}: ${item.value}`).join(', ')}
+                          </p>
+                        </div>
+                      ))}
+                      {analysis.evidenceProcessing.crossInvestigationCorrelation.lookbackTruncated && (
+                        <p className="text-[10px] text-gray-600">Only the most recent investigations within the search limit were checked.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      No shared indicators found across {analysis.evidenceProcessing.crossInvestigationCorrelation.searchedInvestigations} previous investigations.
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <p className="text-sm text-amber-400/80 mt-3">

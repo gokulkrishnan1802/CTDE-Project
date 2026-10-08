@@ -8,7 +8,10 @@ from services.evidence import (
     extract_email_header_evidence,
     file_evidence_metadata,
 )
-from services.evidence_processing import process_evidence
+from services.evidence_processing import (
+    correlate_with_prior_investigations,
+    process_evidence,
+)
 import io
 import os
 import zipfile
@@ -68,7 +71,11 @@ from services.ai import generate_explanation
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analyze", tags=["investigation"])
-def _apply_evidence_processing(result: AnalysisResponse) -> AnalysisResponse:
+def _apply_evidence_processing(
+    result: AnalysisResponse,
+    db: Session | None = None,
+    current_user: User | None = None,
+) -> AnalysisResponse:
     """
     Module 5 — Evidence Processing & Correlation
 
@@ -101,6 +108,72 @@ def _apply_evidence_processing(result: AnalysisResponse) -> AnalysisResponse:
             processing_evidence,
             evidence_type=result.evidenceType,
         )
+
+        if db is None or current_user is None:
+            processed_evidence["crossInvestigationCorrelation"] = {
+                "enabled": False,
+                "status": "authentication_required",
+                "lookbackLimit": 500,
+                "searchedInvestigations": 0,
+                "matchCount": 0,
+                "indicatorMatchCount": 0,
+                "matches": [],
+            }
+        else:
+            try:
+                user_filter = Investigation.user_id == current_user.id
+                searched_count = (
+                    db.query(Investigation.id)
+                    .filter(user_filter)
+                    .count()
+                )
+                prior_investigations = (
+                    db.query(Investigation)
+                    .filter(user_filter)
+                    .order_by(Investigation.created_at.desc())
+                    .limit(500)
+                    .all()
+                )
+                historical_correlation = correlate_with_prior_investigations(
+                    processed_evidence.get("indicators", {}),
+                    prior_investigations,
+                )
+                cross_relationships = historical_correlation["relationships"]
+                processed_evidence["relationships"].extend(
+                    cross_relationships
+                )
+                processed_evidence["summary"]["totalRelationships"] += len(
+                    cross_relationships
+                )
+                match_count = historical_correlation["matchCount"]
+                processed_evidence["crossInvestigationCorrelation"] = {
+                    "enabled": True,
+                    "status": "matches_found" if match_count else "no_matches",
+                    "lookbackLimit": 500,
+                    "searchedInvestigations": len(prior_investigations),
+                    "lookbackTruncated": searched_count > len(
+                        prior_investigations
+                    ),
+                    "matchCount": match_count,
+                    "indicatorMatchCount": historical_correlation[
+                        "indicatorMatchCount"
+                    ],
+                    "matches": historical_correlation["matches"],
+                }
+            except Exception:
+                logger.exception(
+                    "Cross-investigation correlation failed for user %s",
+                    current_user.id,
+                )
+                processed_evidence["crossInvestigationCorrelation"] = {
+                    "enabled": True,
+                    "status": "unavailable",
+                    "lookbackLimit": 500,
+                    "searchedInvestigations": 0,
+                    "matchCount": 0,
+                    "indicatorMatchCount": 0,
+                    "matches": [],
+                }
 
         # Attach Module 5 result to the response.
         result.evidenceProcessing = processed_evidence
@@ -205,7 +278,7 @@ async def analyze(
         )
 
     # Module 5 runs before persistence so the response and saved history match.
-    result = _apply_evidence_processing(result)
+    result = _apply_evidence_processing(result, db, current_user)
 
     # ── Persist authenticated investigation ──────────────────────────────────
     _persist_investigation(
@@ -881,7 +954,7 @@ async def analyze_email_headers(
             evidencePanel=evidence_panel,
         )
 
-        result = _apply_evidence_processing(result)
+        result = _apply_evidence_processing(result, db, current_user)
         _persist_investigation(
             db,
             current_user,
@@ -1803,7 +1876,7 @@ async def analyze_apk_file(
             ),
         )
 
-        result = _apply_evidence_processing(result)
+        result = _apply_evidence_processing(result, db, current_user)
         _persist_investigation(
             db,
             current_user,
@@ -2728,7 +2801,7 @@ async def analyze_qr_image(
             decoded_content,
             source_file_metadata=qr_file_metadata,
         )
-        result = _apply_evidence_processing(result)
+        result = _apply_evidence_processing(result, db, current_user)
         _persist_investigation(
             db,
             current_user,
