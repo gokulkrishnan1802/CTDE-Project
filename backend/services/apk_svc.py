@@ -62,11 +62,13 @@ def analyze_apk_bytes(apk_bytes: bytes, filename: str = "uploaded.apk") -> dict:
     sha256 = hashlib.sha256(apk_bytes).hexdigest()
 
     try:
-        from androguard.misc import AnalyzeAPK
-        # The upload endpoint provides APK contents as bytes. Androguard needs
-        # raw=True to interpret those bytes as an APK instead of a file path.
-        a, d, dx = AnalyzeAPK(apk_bytes, raw=True)
-        return _extract_evidence(a, dx, sha256, filename)
+        from androguard.core.apk import APK
+
+        # AnalyzeAPK also builds a full DEX cross-reference/basic-block graph,
+        # which can exceed the memory available on small hosted instances.
+        # APK parses the manifest and metadata without constructing that graph.
+        a = APK(apk_bytes, raw=True)
+        return _extract_evidence(a, sha256, filename)
     except ImportError:
         logger.warning("androguard not installed — APK deep analysis unavailable")
         return _fallback_apk(sha256, filename, "androguard library not installed")
@@ -82,7 +84,7 @@ def analyze_apk_path(path: str) -> dict:
     return analyze_apk_bytes(data, path.split("/")[-1])
 
 
-def _extract_evidence(a, dx, sha256: str, filename: str) -> dict:
+def _extract_evidence(a, sha256: str, filename: str) -> dict:
     permissions = list(a.get_permissions())
     dangerous = [p for p in permissions if p in DANGEROUS_PERMISSIONS]
 
@@ -94,10 +96,18 @@ def _extract_evidence(a, dx, sha256: str, filename: str) -> dict:
     import re
     urls: list[str] = []
     url_pattern = re.compile(r"https?://[^\s'\"<>]+")
-    for s in dx.get_strings():
-        found = url_pattern.findall(str(s))
-        urls.extend(found)
-    urls = list(set(urls))[:20]  # cap to 20
+    # Search raw DEX bytes for URL literals instead of decoding every method
+    # and building Androguard's much larger DEX analysis graph.
+    url_bytes_pattern = re.compile(rb"https?://[^\x00-\x20'\"<>]+")
+    for dex_bytes in a.get_all_dex():
+        for match in url_bytes_pattern.finditer(dex_bytes):
+            url = match.group(0).decode("utf-8", errors="replace").rstrip(".,);]")
+            urls.append(url)
+            if len(urls) >= 20:
+                break
+        if len(urls) >= 20:
+            break
+    urls = list(dict.fromkeys(urls))
 
     # Certificate / signing info
     signing_cert = "Unknown"
