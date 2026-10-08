@@ -23,6 +23,7 @@ export interface InvestigationResult {
 }
 
 const MAX_MS = 90000;
+const APK_MAX_MS = 240000;
 
 function createTimeout(message: string) {
   return new Promise<never>((_, reject) =>
@@ -188,14 +189,23 @@ export async function runApkInvestigation(
     throw new Error('Please select a valid .apk file.');
   }
 
-  const investigation = postAnalyzeApk(file);
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    APK_MAX_MS,
+  );
 
-  const backend = await Promise.race([
-    investigation,
-    createTimeout(
-      'APK investigation timed out. Please check that the CTDE backend is running and try again.'
-    ),
-  ]);
-
-  return buildInvestigationResult(backend);
+  try {
+    const backend = await postAnalyzeApk(file, controller.signal);
+    return await buildInvestigationResult(backend);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        'APK investigation took longer than 4 minutes. Try again while the backend is awake or use a smaller APK.',
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

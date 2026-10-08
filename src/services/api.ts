@@ -579,7 +579,8 @@ export async function postAnalyzeQr(
 // ─────────────────────────────────────────────
 
 export async function postAnalyzeApk(
-  file: File
+  file: File,
+  signal?: AbortSignal,
 ): Promise<BackendAnalysisResponse> {
   const formData = new FormData();
 
@@ -594,6 +595,7 @@ export async function postAnalyzeApk(
         method: 'POST',
         headers: getAuthHeaders(),
         body: formData,
+        signal,
       }
     );
   } catch {
