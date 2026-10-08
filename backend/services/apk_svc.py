@@ -63,7 +63,9 @@ def analyze_apk_bytes(apk_bytes: bytes, filename: str = "uploaded.apk") -> dict:
 
     try:
         from androguard.misc import AnalyzeAPK
-        a, d, dx = AnalyzeAPK(apk_bytes)
+        # The upload endpoint provides APK contents as bytes. Androguard needs
+        # raw=True to interpret those bytes as an APK instead of a file path.
+        a, d, dx = AnalyzeAPK(apk_bytes, raw=True)
         return _extract_evidence(a, dx, sha256, filename)
     except ImportError:
         logger.warning("androguard not installed — APK deep analysis unavailable")
