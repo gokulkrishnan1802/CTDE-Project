@@ -2616,10 +2616,35 @@ def _generate_case_id(db: Session) -> str:
     year = datetime.now(timezone.utc).year
 
     return f"CTDE-{year}-{str(count + 1).zfill(4)}"
+def _reason_text(risk: RiskResult) -> str:
+    if not risk.factors:
+        return (
+            f"Trust Score: {risk.score}/100. "
+            "No evidence factors were collected."
+        )
 
+    negative = [
+        factor.label for factor in risk.factors
+        if not factor.positive
+    ]
+    positive = [
+        factor.label for factor in risk.factors
+        if factor.positive
+    ]
+
+    parts = []
+    if negative:
+        parts.append(f"Risk factors: {'; '.join(negative[:3])}")
+    if positive:
+        parts.append(f"Trust factors: {'; '.join(positive[:3])}")
+
+    explanation = " | ".join(parts) or "No specific factors were recorded"
+    return f"{explanation}. Final score: {risk.score}/100."
 @router.post("/qr", response_model=AnalysisResponse)
 async def analyze_qr_image(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     """
     Analyze an uploaded QR-code image.
