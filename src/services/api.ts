@@ -392,10 +392,11 @@ export interface AskAIResponse {
 }
 
 export async function postAskAI(
-  payload: AskAIRequest
+  payload: AskAIRequest,
 ): Promise<AskAIResponse> {
   return request<AskAIResponse>('/ask-ai', {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
 }

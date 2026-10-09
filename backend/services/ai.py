@@ -227,7 +227,13 @@ def _rule_based_explanation(ev: dict) -> dict[str, str]:
 
 def _rule_based_chat(question: str, investigation: dict) -> str:
     """Answer a specific question using only investigation data."""
-    q = question.lower()
+    q = question.strip().lower()
+    greeting = q.strip(" !.,?")
+    if greeting in {"hi", "hello", "hey", "good morning", "good afternoon", "good evening"}:
+        return (
+        "Hi! I can explain the findings in this investigation. "
+        "Ask me about the score, evidence, reputation checks, or recommendations."
+    )
     risk = investigation.get("riskLevel", "Unknown")
     score = investigation.get("trustScore", 0)
     evidence_type = investigation.get("evidenceType", "evidence")
