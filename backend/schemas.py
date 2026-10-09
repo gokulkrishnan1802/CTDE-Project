@@ -1,27 +1,25 @@
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List, Any
-from pydantic import BaseModel, EmailStr, field_validator
+from typing import Any, List, Optional
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
-def validate_password_strength(v: str) -> str:
-    if len(v) < 8:
+
+def validate_password_strength(value: str) -> str:
+    if len(value) < 8:
         raise ValueError("Password must be at least 8 characters")
-
-    if not any(c.isupper() for c in v):
+    if not any(char.isupper() for char in value):
         raise ValueError("Password must contain an uppercase letter")
-
-    if not any(c.islower() for c in v):
+    if not any(char.islower() for char in value):
         raise ValueError("Password must contain a lowercase letter")
-
-    if not any(c.isdigit() for c in v):
+    if not any(char.isdigit() for char in value):
         raise ValueError("Password must contain a number")
-
-    if not any(not c.isalnum() for c in v):
+    if not any(not char.isalnum() for char in value):
         raise ValueError("Password must contain a special character")
-
-    return v
+    return value
 
 
 class ResetPasswordRequest(BaseModel):
@@ -32,8 +30,9 @@ class ResetPasswordRequest(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
-        return validate_password_strength(v)
+    def validate_password(cls, value: str) -> str:
+        return validate_password_strength(value)
+
 
 class UserRegister(BaseModel):
     full_name: str
@@ -43,8 +42,8 @@ class UserRegister(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
-        return validate_password_strength(v)
+    def validate_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class UserLogin(BaseModel):
@@ -68,6 +67,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
     user: UserOut
 
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -77,8 +77,7 @@ class VerifyOTPRequest(BaseModel):
     otp: str
 
 
-
-# ── Investigation Request ─────────────────────────────────────────────────────
+# ── Investigation Request ────────────────────────────────────────────────────
 
 class AnalyzeRequest(BaseModel):
     evidenceType: str
@@ -86,54 +85,50 @@ class AnalyzeRequest(BaseModel):
 
     @field_validator("evidenceType", mode="before")
     @classmethod
-    def validate_type(cls, v: str) -> str:
-        if not isinstance(v, str):
+    def validate_type(cls, value: str) -> str:
+        if not isinstance(value, str):
             raise ValueError("evidenceType must be a string")
 
-        v = v.strip().lower()
-
+        value = value.strip().lower()
         allowed = {"url", "email", "apk", "qr", "sender"}
 
-        if v not in allowed:
+        if value not in allowed:
             raise ValueError(
                 f"evidenceType must be one of: {', '.join(sorted(allowed))}"
             )
-
-        return v
+        return value
 
     @field_validator("evidenceValue")
     @classmethod
-    def validate_value(cls, v: str) -> str:
-        if not isinstance(v, str):
+    def validate_value(cls, value: str) -> str:
+        if not isinstance(value, str):
             raise ValueError("evidenceValue must be a string")
 
-        v = v.strip()
-
-        if not v:
+        value = value.strip()
+        if not value:
             raise ValueError("evidenceValue cannot be empty")
-
-        if len(v) > 10000:
+        if len(value) > 10000:
             raise ValueError(
                 "evidenceValue is too large. Maximum length is 10000 characters."
             )
+        return value
 
-        return v
+
 class EmailHeaderRequest(BaseModel):
     rawHeaders: str
 
     @field_validator("rawHeaders")
     @classmethod
-    def validate_raw_headers(cls, v: str) -> str:
-        if not v or not v.strip():
+    def validate_raw_headers(cls, value: str) -> str:
+        if not value or not value.strip():
             raise ValueError("Email headers cannot be empty")
-
-        if len(v.strip()) < 20:
+        if len(value.strip()) < 20:
             raise ValueError("Please provide valid email headers")
+        return value.strip()
 
-        return v.strip()
 
 class AskAIRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=1000)
     investigation: dict[str, Any]
 
 
@@ -141,7 +136,7 @@ class AskAIResponse(BaseModel):
     answer: str
 
 
-# ── Structured sub-objects ────────────────────────────────────────────────────
+# ── Structured sub-objects ───────────────────────────────────────────────────
 
 class ScoreBreakdown(BaseModel):
     label: str
@@ -251,7 +246,7 @@ class EvidencePanelData(BaseModel):
     sha256Hash: str
 
 
-# ── Main Analysis Response ────────────────────────────────────────────────────
+# ── Main Analysis Response ───────────────────────────────────────────────────
 
 class AnalysisResponse(BaseModel):
     evidenceType: str
@@ -269,7 +264,7 @@ class AnalysisResponse(BaseModel):
     reputationAnalysis: str
     trustScore: int
     riskLevel: str  # Safe | Suspicious | Dangerous
-    confidence: int
+    confidence: Optional[int] = None
     reasonBehindDecision: str
     investigationStory: str
     mitreMapping: List[str]
@@ -291,7 +286,9 @@ class AnalysisResponse(BaseModel):
     digitalEvidence: Optional[dict] = None
     # Module 5 — Evidence Processing & Correlation
     evidenceProcessing: Optional[dict] = None
-# ── Report Schemas ────────────────────────────────────────────────────────────
+
+
+# ── Report Schemas ───────────────────────────────────────────────────────────
 
 class ReportOut(BaseModel):
     id: str
@@ -303,6 +300,7 @@ class ReportOut(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class GoogleLoginRequest(BaseModel):
     credential: str

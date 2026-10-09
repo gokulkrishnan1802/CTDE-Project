@@ -211,7 +211,7 @@ def _persist_investigation(
             evidence_value=evidence_value,
             trust_score=result.trustScore,
             risk_level=result.riskLevel,
-            confidence=result.confidence,
+            confidence=result.confidence or 0,
             result_json=result.model_dump(),
         )
         db.add(inv)
@@ -900,7 +900,7 @@ async def analyze_email_headers(
 
             riskLevel=final_risk,
 
-            confidence=90,
+            confidence=None,
 
             reasonBehindDecision=(
                 f"Header forensic analysis detected "
@@ -1228,7 +1228,7 @@ async def _pipeline_url(url: str) -> AnalysisResponse:
 
         trustScore=risk_result.score,
         riskLevel=risk_result.risk_level,
-        confidence=90,
+        confidence=None,
 
         reasonBehindDecision=_reason_text(risk_result),
 
@@ -1443,7 +1443,7 @@ async def _pipeline_email(email_str: str) -> AnalysisResponse:
 
         trustScore=risk_result.score,
         riskLevel=risk_result.risk_level,
-        confidence=85,
+        confidence=None,
 
         reasonBehindDecision=_reason_text(
             risk_result
@@ -1610,7 +1610,7 @@ async def _pipeline_apk_string(apk_value: str) -> AnalysisResponse:
 
         trustScore=risk_result.score,
 riskLevel=risk_result.risk_level,
-confidence=50,
+confidence=None,
         reasonBehindDecision=_reason_text(risk_result),
 
         investigationStory=ai_texts["investigationStory"],
@@ -1835,7 +1835,7 @@ async def analyze_apk_file(
             reputationAnalysis=reputation_text,
             trustScore=risk_result.score,
             riskLevel=risk_result.risk_level,
-            confidence=85 if apk_evidence.get("permissions") is not None else 50,
+            confidence=None if apk_evidence.get("permissions") is not None else 50,
             reasonBehindDecision=_reason_text(risk_result),
             investigationStory=ai_texts["investigationStory"],
             mitreMapping=[
@@ -2047,7 +2047,7 @@ async def _pipeline_qr(
 
        trustScore=risk_result.score,
         riskLevel=risk_result.risk_level,
-        confidence=80,
+        confidence=None,
 
         reasonBehindDecision=_reason_text(risk_result),
 

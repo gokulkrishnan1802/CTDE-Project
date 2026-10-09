@@ -1,5 +1,6 @@
-from pydantic_settings import BaseSettings
 from typing import Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -22,13 +23,15 @@ class Settings(BaseSettings):
     URLSCAN_API_KEY: Optional[str] = None
     ABUSEIPDB_API_KEY: Optional[str] = None
 
-    # AI Provider (optional — rule-based fallback when absent)
+    # AI providers (optional — rule-based fallback when absent)
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4o-mini"
     GOOGLE_API_KEY: Optional[str] = None
-    GOOGLE_MODEL: str = "gemini-1.5-flash"
+    GOOGLE_MODEL: str = "gemini-3.8-flash"
 
-    GOOGLE_CLIENT_ID: str = "219044358631-f3hlcjf3ihsii9vs01qm99ai2jn8u7ot.apps.googleusercontent.com"
+    GOOGLE_CLIENT_ID: str = (
+        "219044358631-f3hlcjf3ihsii9vs01qm99ai2jn8u7ot.apps.googleusercontent.com"
+    )
 
     # HTTP
     HTTP_TIMEOUT: float = 15.0
@@ -36,7 +39,7 @@ class Settings(BaseSettings):
 
     # Reports
     REPORTS_DIR: str = "reports"
-    
+
     # Email / OTP
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587

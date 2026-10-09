@@ -62,42 +62,42 @@ const EVIDENCE_TYPES: {
   desc: string;
   placeholder: string;
 }[] = [
-  {
-    type: 'url',
-    label: 'Website / Link',
-    icon: Globe,
-    desc: 'Check whether a website or link looks safe',
-    placeholder: 'Paste the website link here',
-  },
-  {
-    type: 'email',
-    label: 'Email / Message',
-    icon: Mail,
-    desc: 'Check whether an email message may be fake or suspicious',
-    placeholder: 'Paste the email headers here',
-  },
-  {
-    type: 'apk',
-    label: 'Android App',
-    icon: Smartphone,
-    desc: 'Check an Android APK file for suspicious permissions and activity',
-    placeholder: 'Select an APK file',
-  },
-  {
-    type: 'qr',
-    label: 'QR Code',
-    icon: QrCode,
-    desc: 'Check where a QR code leads before you open it',
-    placeholder: 'Upload a QR image or paste its content',
-  },
-  {
-    type: 'sender',
-    label: 'Sender / SMS',
-    icon: Send,
-    desc: 'Check whether a sender, SMS ID or messaging identity looks genuine',
-    placeholder: 'Enter the sender name or number',
-  },
-];
+    {
+      type: 'url',
+      label: 'Website / Link',
+      icon: Globe,
+      desc: 'Check whether a website or link looks safe',
+      placeholder: 'Paste the website link here',
+    },
+    {
+      type: 'email',
+      label: 'Email / Message',
+      icon: Mail,
+      desc: 'Check whether an email message may be fake or suspicious',
+      placeholder: 'Paste the email headers here',
+    },
+    {
+      type: 'apk',
+      label: 'Android App',
+      icon: Smartphone,
+      desc: 'Check an Android APK file for suspicious permissions and activity',
+      placeholder: 'Select an APK file',
+    },
+    {
+      type: 'qr',
+      label: 'QR Code',
+      icon: QrCode,
+      desc: 'Check where a QR code leads before you open it',
+      placeholder: 'Upload a QR image or paste its content',
+    },
+    {
+      type: 'sender',
+      label: 'Sender / SMS',
+      icon: Send,
+      desc: 'Check whether a sender, SMS ID or messaging identity looks genuine',
+      placeholder: 'Enter the sender name or number',
+    },
+  ];
 
 const PROGRESS_STEPS = [
   'Preparing your check',
@@ -217,37 +217,37 @@ export default function InvestigationPage({
   // HANDLE COMPLETED BACKEND INVESTIGATION
   // ──────────────────────────────────────────────────────────────────────────
 
-const handleProgressComplete = (
-  result: InvestigationResult
-) => {
-  setAnalysis(result.analysis);
+  const handleProgressComplete = (
+    result: InvestigationResult
+  ) => {
+    setAnalysis(result.analysis);
 
-  setEvidencePanel(
-    result.evidencePanel
-  );
-
-  setTimeline(
-    result.timeline
-  );
-
-  setInvestigationResult(
-    result
-  );
-
-  // Save the REAL decoded QR destination.
-  // This replaces the uploaded image as the
-  // investigation's evidence value.
-  if (
-    evidenceType === 'qr' &&
-    result.raw.qr?.decodedUrl
-  ) {
-    setEvidenceValue(
-      result.raw.qr.decodedUrl
+    setEvidencePanel(
+      result.evidencePanel
     );
-  }
 
-  setStep('result');
-};
+    setTimeline(
+      result.timeline
+    );
+
+    setInvestigationResult(
+      result
+    );
+
+    // Save the REAL decoded QR destination.
+    // This replaces the uploaded image as the
+    // investigation's evidence value.
+    if (
+      evidenceType === 'qr' &&
+      result.raw.qr?.decodedUrl
+    ) {
+      setEvidenceValue(
+        result.raw.qr.decodedUrl
+      );
+    }
+
+    setStep('result');
+  };
 
   // ──────────────────────────────────────────────────────────────────────────
   // GENERATE REPORT
@@ -275,12 +275,7 @@ const handleProgressComplete = (
       riskLevel: analysis.riskLevel,
       report: 'PDF Generated',
       investigator: user.fullName,
-      aiConfidence:
-        investigationResult?.aiConfidence ??
-        parseInt(
-          analysis.aiExplanation.match(/\d+(?=%)/)?.[0] ||
-            '90'
-        ),
+      aiConfidence: 0,
       evidencePanel,
       timeline,
       analysis,
@@ -426,8 +421,8 @@ function CreateStep(props: {
       props.evidenceType === 'qr'
         ? Boolean(props.qrFile || props.evidenceValue.trim())
         : props.evidenceType === 'apk'
-        ? Boolean(props.apkFile)
-        : Boolean(props.evidenceValue.trim())
+          ? Boolean(props.apkFile)
+          : Boolean(props.evidenceValue.trim())
     );
 
   const handleQrFileUpload = (
@@ -504,11 +499,10 @@ function CreateStep(props: {
               <button
                 key={e.type}
                 onClick={() => props.setEvidenceType(e.type)}
-                className={`text-left p-4 rounded-xl border transition-all duration-200 group ${
-                  active
+                className={`text-left p-4 rounded-xl border transition-all duration-200 group ${active
                     ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.06)]'
                     : 'bg-[#0a0e14] border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <Icon className="w-6 h-6" />
@@ -836,15 +830,15 @@ function ProgressStep({
       evidenceType === 'apk' && apkFile
         ? runApkInvestigation(apkFile)
         : evidenceType === 'qr' && qrFile
-        ? runQrInvestigation(qrFile)
-        : evidenceType === 'email'
-        ? runEmailHeaderInvestigation(
-            evidenceValue
-          )
-        : runInvestigation(
-            evidenceType,
-            evidenceValue
-          );
+          ? runQrInvestigation(qrFile)
+          : evidenceType === 'email'
+            ? runEmailHeaderInvestigation(
+              evidenceValue
+            )
+            : runInvestigation(
+              evidenceType,
+              evidenceValue
+            );
     investigation
       .then(result => {
 
@@ -948,10 +942,10 @@ function ProgressStep({
   const overallPct = error
     ? 0
     : Math.round(
-        (completed.length /
-          visibleSteps.length) *
-          100
-      );
+      (completed.length /
+        visibleSteps.length) *
+      100
+    );
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
@@ -968,8 +962,8 @@ function ProgressStep({
             {evidenceType === 'apk' && apkFile
               ? apkFile.name
               : evidenceType === 'qr' && qrFile
-              ? qrFile.name
-              : evidenceValue}
+                ? qrFile.name
+                : evidenceValue}
           </span>
         </p>
       </div>
@@ -1049,11 +1043,10 @@ function ProgressStep({
               return (
                 <div
                   key={label}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    isActive
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive
                       ? 'bg-cyan-500/5'
                       : ''
-                  }`}
+                    }`}
                 >
 
                   {isDone ? (
@@ -1071,13 +1064,12 @@ function ProgressStep({
                   )}
 
                   <span
-                    className={`text-sm font-mono ${
-                      isDone
+                    className={`text-sm font-mono ${isDone
                         ? 'text-gray-400'
                         : isActive
-                        ? 'text-cyan-400'
-                        : 'text-gray-700'
-                    }`}
+                          ? 'text-cyan-400'
+                          : 'text-gray-700'
+                      }`}
                   >
                     {label}
                   </span>
@@ -1143,11 +1135,6 @@ function ResultStep(props: {
     evidencePanel,
     timeline,
   } = props;
-
-  const aiConfidence =
-    parseInt(
-      analysis.aiExplanation.match(/\d+(?=%)/)?.[0] || '90',
-    );
 
   const resultConfig = {
     Safe: {
@@ -1463,8 +1450,8 @@ function ResultStep(props: {
                 value={analysis.riskLevel}
               />
               <DetailField
-                label="AI Confidence"
-                value={`${aiConfidence}%`}
+                label="Score Calibration"
+                value="Not benchmarked"
               />
               <DetailField
                 label="Investigator"
@@ -1507,11 +1494,10 @@ function ResultStep(props: {
                   </span>
 
                   <span
-                    className={`text-xs font-mono ${
-                      factor.positive
+                    className={`text-xs font-mono ${factor.positive
                         ? 'text-emerald-400'
                         : 'text-yellow-400'
-                    }`}
+                      }`}
                   >
                     {factor.positive ? '+' : ''}
                     {factor.points}
@@ -1537,11 +1523,10 @@ function ResultStep(props: {
                   className="flex items-center gap-2.5 px-3 py-2.5 bg-[#0a0e14] border border-gray-800/50 rounded-lg"
                 >
                   <CheckCircle2
-                    className={`w-4 h-4 shrink-0 ${
-                      mod.passed
+                    className={`w-4 h-4 shrink-0 ${mod.passed
                         ? 'text-emerald-400'
                         : 'text-gray-700'
-                    }`}
+                      }`}
                   />
 
                   <div className="min-w-0">
@@ -1909,27 +1894,24 @@ function StepIndicator({
         >
 
           <div
-            className={`flex items-center gap-1.5 ${
-              compact
+            className={`flex items-center gap-1.5 ${compact
                 ? ''
                 : 'px-3 py-1.5 rounded-lg'
-            } ${
-              i === current
+              } ${i === current
                 ? 'bg-cyan-500/10 text-cyan-400'
                 : i < current
-                ? 'text-emerald-400'
-                : 'text-gray-700'
-            }`}
+                  ? 'text-emerald-400'
+                  : 'text-gray-700'
+              }`}
           >
 
             <div
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                i === current
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${i === current
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
                   : i < current
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                  : 'bg-[#0a0e14] text-gray-700 border border-gray-800'
-              }`}
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'bg-[#0a0e14] text-gray-700 border border-gray-800'
+                }`}
             >
 
               {i < current ? (
@@ -1941,11 +1923,10 @@ function StepIndicator({
             </div>
 
             <span
-              className={`text-xs font-medium ${
-                compact
+              className={`text-xs font-medium ${compact
                   ? 'hidden sm:inline'
                   : ''
-              }`}
+                }`}
             >
               {s}
             </span>
@@ -1955,15 +1936,14 @@ function StepIndicator({
           {i <
             steps.length - 1 && (
 
-            <div
-              className={`w-6 h-px ${
-                i < current
-                  ? 'bg-emerald-500/40'
-                  : 'bg-gray-800'
-              }`}
-            />
+              <div
+                className={`w-6 h-px ${i < current
+                    ? 'bg-emerald-500/40'
+                    : 'bg-gray-800'
+                  }`}
+              />
 
-          )}
+            )}
 
         </div>
 
@@ -2022,11 +2002,10 @@ function PanelItem({
         </p>
 
         <p
-          className={`text-xs text-gray-400 ${
-            mono
+          className={`text-xs text-gray-400 ${mono
               ? 'font-mono break-all'
               : 'truncate'
-          }`}
+            }`}
         >
           {value}
         </p>
@@ -2260,9 +2239,8 @@ function ForensicEmailField({
       </div>
 
       <div
-        className={`text-sm font-semibold ${
-          positive ? 'text-emerald-400' : 'text-red-400'
-        }`}
+        className={`text-sm font-semibold ${positive ? 'text-emerald-400' : 'text-red-400'
+          }`}
       >
         {value}
       </div>

@@ -8,7 +8,16 @@ import { FileText, Download, Eye, ShieldCheck, AlertTriangle, ShieldAlert, X, Gl
 interface Props {
   refreshKey: number;
 }
-
+function escapeHtml(value: unknown): string {
+  const escapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return String(value ?? '').replace(/[&<>"']/g, (char) => escapes[char] ?? char);
+}
 const EVIDENCE_ICONS: Record<EvidenceType, typeof Globe> = {
   url: Globe, email: Mail, apk: Smartphone, qr: QrCode, sender: Send,
 };
@@ -41,55 +50,75 @@ export default function ReportsPage({ refreshKey }: Props) {
   };
 
   const printReport = (inv: Investigation) => {
-    const win = window.open('', '_blank');
-    if (!win) return;
+  const win = window.open('', '_blank');
+  if (!win) return;
 
-    const processing = inv.analysis.evidenceProcessing;
-    const correlationHtml = processing
-      ? `<div class="section"><h2>Evidence Processing &amp; Correlation</h2>
-        <div class="field">Status: ${processing.processed ? 'Completed' : `Failed — ${processing.error || 'Unknown error'}`}</div>
-        <div class="field">Indicators: ${processing.summary?.totalIndicators ?? 0}</div>
-        <div class="field">Relationships: ${processing.summary?.totalRelationships ?? 0}</div>
-        <ul>${(processing.relationships || []).map((item) => `<li>${item.source} — ${item.relationship.replace(/_/g, ' ')} → ${item.target}</li>`).join('')}</ul>
-        </div>`
-      : '';
+  const processing = inv.analysis.evidenceProcessing;
+  const correlationHtml = processing
+    ? `<div class="section"><h2>Evidence Processing &amp; Correlation</h2>
+      <div class="field">Status: ${
+        processing.processed
+          ? 'Completed'
+          : `Failed — ${escapeHtml(processing.error || 'Unknown error')}`
+      }</div>
+      <div class="field">Indicators: ${processing.summary?.totalIndicators ?? 0}</div>
+      <div class="field">Relationships: ${processing.summary?.totalRelationships ?? 0}</div>
+      <ul>${(processing.relationships || [])
+        .map(
+          (item) =>
+            `<li>${escapeHtml(item.source)} — ${escapeHtml(
+              item.relationship.replace(/_/g, ' '),
+            )} → ${escapeHtml(item.target)}</li>`,
+        )
+        .join('')}</ul>
+      </div>`
+    : '';
 
-    win.document.write(`
-      <html><head><title>${inv.caseId} Report</title>
-      <style>
-        body{font-family:monospace;padding:40px;max-width:800px;margin:auto;color:#333}
-        h1{color:#0080ff}h2{color:#006699;border-bottom:1px solid #ccc;padding-bottom:4px}
-        .header{background:#0a0e14;color:#00f0ff;padding:20px;border-radius:8px;margin-bottom:20px}
-        .field{margin:4px 0}.label{color:#666;font-size:11px;text-transform:uppercase}
-        .section{margin:16px 0;padding:12px;border:1px solid #eee;border-radius:4px}
-        .footer{margin-top:40px;border-top:1px solid #ccc;padding-top:10px;font-size:10px;color:#999;text-align:center}
-      </style></head><body>
-      <div class="header"><h1>CyberTrust Decision Engine (CTDE)</h1><p>Digital Forensics Investigation Report</p></div>
-      <h2>Case Details</h2>
-      <div class="field"><span class="label">Case ID:</span> ${inv.caseId}</div>
-      <div class="field"><span class="label">Investigator:</span> ${inv.investigator}</div>
-      <div class="field"><span class="label">Date:</span> ${new Date(inv.createdAt).toLocaleString()}</div>
-      <div class="field"><span class="label">Evidence:</span> ${inv.evidenceType.toUpperCase()} - ${inv.evidenceValue}</div>
-      <div class="field"><span class="label">Trust Score:</span> ${inv.trustScore}/100 (${inv.riskLevel})</div>
-      <div class="section"><h2>Evidence Summary</h2>${inv.analysis.evidenceSummary}</div>
-      ${correlationHtml}
-      <div class="section"><h2>Identity Verification</h2>${inv.analysis.identityVerification}</div>
-      <div class="section"><h2>Domain Verification</h2>${inv.analysis.domainVerification}</div>
-      <div class="section"><h2>Certificate Validation</h2>${inv.analysis.certificateValidation}</div>
-      <div class="section"><h2>WHOIS</h2>${inv.analysis.whoisInfo}</div>
-      <div class="section"><h2>Brand Impersonation</h2>${inv.analysis.brandImpersonation}</div>
-      <div class="section"><h2>URL Analysis</h2>${inv.analysis.urlAnalysis}</div>
-      <div class="section"><h2>Reputation Analysis</h2>${inv.analysis.reputationAnalysis}</div>
-      <div class="section"><h2>MITRE ATT&CK Mapping</h2><ul>${inv.analysis.mitreMapping.map(m => `<li>${m}</li>`).join('')}</ul></div>
-      <div class="section"><h2>AI Explanation</h2>${inv.analysis.aiExplanation}</div>
-      <div class="section"><h2>Recommendations</h2><ol>${inv.analysis.recommendations.map(r => `<li>${r}</li>`).join('')}</ol></div>
-      <div class="section"><h2>Timeline</h2><ul>${inv.timeline.map(t => `<li>${new Date(t.timestamp).toLocaleTimeString()} - ${t.label}</li>`).join('')}</ul></div>
-      <div class="footer">Department of Cyber Security - College Project</div>
-      </body></html>`);
+  win.document.write(`
+    <html><head><title>${escapeHtml(inv.caseId)} Report</title>
+    <style>
+      body{font-family:monospace;padding:40px;max-width:800px;margin:auto;color:#333}
+      h1{color:#0080ff}h2{color:#006699;border-bottom:1px solid #ccc;padding-bottom:4px}
+      .header{background:#0a0e14;color:#00f0ff;padding:20px;border-radius:8px;margin-bottom:20px}
+      .field{margin:4px 0}.label{color:#666;font-size:11px;text-transform:uppercase}
+      .section{margin:16px 0;padding:12px;border:1px solid #eee;border-radius:4px}
+      .footer{margin-top:40px;border-top:1px solid #ccc;padding-top:10px;font-size:10px;color:#999;text-align:center}
+    </style></head><body>
+    <div class="header"><h1>CyberTrust Decision Engine (CTDE)</h1><p>Digital Forensics Investigation Report</p></div>
+    <h2>Case Details</h2>
+    <div class="field"><span class="label">Case ID:</span> ${escapeHtml(inv.caseId)}</div>
+    <div class="field"><span class="label">Investigator:</span> ${escapeHtml(inv.investigator)}</div>
+    <div class="field"><span class="label">Date:</span> ${escapeHtml(new Date(inv.createdAt).toLocaleString())}</div>
+    <div class="field"><span class="label">Evidence:</span> ${escapeHtml(inv.evidenceType.toUpperCase())} - ${escapeHtml(inv.evidenceValue)}</div>
+    <div class="field"><span class="label">Trust Score:</span> ${escapeHtml(inv.trustScore)}/100 (${escapeHtml(inv.riskLevel)})</div>
+    <div class="section"><h2>Evidence Summary</h2>${escapeHtml(inv.analysis.evidenceSummary)}</div>
+    ${correlationHtml}
+    <div class="section"><h2>Identity Verification</h2>${escapeHtml(inv.analysis.identityVerification)}</div>
+    <div class="section"><h2>Domain Verification</h2>${escapeHtml(inv.analysis.domainVerification)}</div>
+    <div class="section"><h2>Certificate Validation</h2>${escapeHtml(inv.analysis.certificateValidation)}</div>
+    <div class="section"><h2>WHOIS</h2>${escapeHtml(inv.analysis.whoisInfo)}</div>
+    <div class="section"><h2>Brand Impersonation</h2>${escapeHtml(inv.analysis.brandImpersonation)}</div>
+    <div class="section"><h2>URL Analysis</h2>${escapeHtml(inv.analysis.urlAnalysis)}</div>
+    <div class="section"><h2>Reputation Analysis</h2>${escapeHtml(inv.analysis.reputationAnalysis)}</div>
+    <div class="section"><h2>MITRE ATT&amp;CK Mapping</h2><ul>${inv.analysis.mitreMapping
+      .map((item) => `<li>${escapeHtml(item)}</li>`)
+      .join('')}</ul></div>
+    <div class="section"><h2>AI Explanation</h2>${escapeHtml(inv.analysis.aiExplanation)}</div>
+    <div class="section"><h2>Recommendations</h2><ol>${inv.analysis.recommendations
+      .map((item) => `<li>${escapeHtml(item)}</li>`)
+      .join('')}</ol></div>
+    <div class="section"><h2>Timeline</h2><ul>${inv.timeline
+      .map(
+        (item) =>
+          `<li>${escapeHtml(new Date(item.timestamp).toLocaleTimeString())} - ${escapeHtml(item.label)}</li>`,
+      )
+      .join('')}</ul></div>
+    <div class="footer">Department of Cyber Security - College Project</div>
+    </body></html>`);
 
-    win.document.close();
-    win.print();
-  };
+  win.document.close();
+  win.print();
+};
 
   const getSimpleLabel = (level: RiskLevel) => {
     if (level === 'Safe') return 'Looks Safe';

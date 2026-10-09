@@ -15,7 +15,7 @@ export function generatePDFReport(inv: Investigation): void {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(180, 180, 180);
-  doc.text('Digital Forensics Investigation Platform — Powered by AI', 14, 26);
+  doc.text('Digital Forensics Investigation Platform — Evidence-Based Analysis', 14, 26);
   doc.setFontSize(8);
   doc.text(`Report Generated: ${new Date().toLocaleString()}`, pageWidth - 14, 26, { align: 'right' });
 
@@ -115,7 +115,10 @@ export function generatePDFReport(inv: Investigation): void {
   });
   y += 4;
 
-  addSection('Digital Trust Score', `Score: ${inv.trustScore}/100\nRisk Level: ${inv.riskLevel}\nAI Confidence: ${inv.aiConfidence}%`);
+  addSection(
+  'Digital Trust Score',
+  `Heuristic score: ${inv.trustScore}/100\nRisk Level: ${inv.riskLevel}\nCalibration: Not benchmarked`,
+);
   addSection('AI Explanation', inv.analysis.aiExplanation);
   addSection('AI Summary', inv.analysis.aiSummary);
 

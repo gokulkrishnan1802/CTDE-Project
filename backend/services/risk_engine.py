@@ -19,7 +19,7 @@ class RiskResult:
     score: int
     risk_level: str  # Safe | Suspicious | Dangerous
     factors: list[RiskFactor] = field(default_factory=list)
-    confidence: int = 90
+    confidence: Optional[int] = None
 
 
 def score_to_risk_level(score: int) -> str:

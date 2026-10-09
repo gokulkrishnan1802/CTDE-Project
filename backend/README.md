@@ -1,6 +1,6 @@
 # CyberTrust Decision Engine (CTDE) — Backend
 
-AI-powered Digital Trust and Forensics platform.
+Digital trust and forensics platform with evidence processing, heuristic risk scoring, optional AI explanations, and investigation reports.
 
 ## Quick Start
 
@@ -12,147 +12,126 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 The frontend expects the backend at `http://localhost:8000`.
 
----
-
 ## Environment Variables
 
-Create a `.env` file in the `backend/` directory:
+Create a `.env` file in the `backend/` directory. AI and threat intelligence keys are optional; without an AI key, the backend uses its rule-based explanation.
 
 ```env
-# Optional — AI Explanations (rule-based fallback if absent)
-OPENAI_API_KEY=sk-...
+# Optional AI providers
+OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
+GOOGLE_API_KEY=
+GOOGLE_MODEL=gemini-3.8-flash
 
-GOOGLE_API_KEY=AIza...
-GOOGLE_MODEL=gemini-1.5-flash
+# Optional threat intelligence
+VIRUSTOTAL_API_KEY=
+GOOGLE_SAFE_BROWSING_API_KEY=
+URLSCAN_API_KEY=
+ABUSEIPDB_API_KEY=
 
-# Optional — Threat Intelligence (graceful fallback if absent)
-VIRUSTOTAL_API_KEY=...
-GOOGLE_SAFE_BROWSING_API_KEY=...
-URLSCAN_API_KEY=...
-ABUSEIPDB_API_KEY=...
-
-# JWT (change in production)
+# Change this in production
 SECRET_KEY=change-this-secret-key-in-production
 
-# Database (default: SQLite)
+# Database (SQLite default)
 DATABASE_URL=sqlite:///./ctde.db
 ```
-
-**All API keys are optional.** The backend performs real forensic analysis (DNS, WHOIS, SSL, HTTP) without any keys. API keys unlock additional threat intelligence layers.
-
----
 
 ## API Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
-| POST | `/analyze` | Main investigation endpoint |
-| POST | `/ask-ai` | AI assistant chat |
-| GET | `/health` | Server status & API key status |
-| POST | `/users/register` | Create account |
-| POST | `/users/login` | Get JWT token |
-| GET | `/users/me` | Current user profile |
-| GET | `/reports` | List investigations (auth required) |
-| GET | `/reports/{id}` | Get investigation JSON |
-| POST | `/reports/{id}/pdf` | Download PDF report |
+|---|---|---|
+| POST | `/analyze` | Analyze submitted evidence |
+| POST | `/analyze/email` | Analyze raw email headers |
+| POST | `/analyze/apk` | Analyze an uploaded APK |
+| POST | `/ask-ai` | Ask about an investigation; authentication required |
+| GET | `/health` | Backend status and configured API-key status |
+| POST | `/users/register` | Create an account |
+| POST | `/users/login` | Get an authentication token |
+| GET | `/users/me` | Get the signed-in user profile |
+| GET | `/reports` | List the signed-in user's investigations |
+| GET | `/reports/{id}` | Get an investigation result |
+| GET | `/reports/{id}/download` | Download a PDF report |
+| GET | `/reports/{id}/download.json` | Download a JSON report |
+| POST | `/reports/{id}/pdf` | Existing PDF download endpoint |
 
-### POST /analyze
+Report endpoints require authentication and only return investigations belonging to the signed-in user.
+
+### Analyze evidence
 
 ```json
 {
   "evidenceType": "url",
-  "evidenceValue": "https://suspicious-site.com"
+  "evidenceValue": "https://example.com"
 }
 ```
 
-Evidence types: `url`, `email`, `apk`, `qr`, `sender`
+Supported evidence types include `url`, `email`, `apk`, `qr`, and `sender`.
 
-### POST /ask-ai
+### Ask the assistant
 
 ```json
 {
-  "question": "Why is this site dangerous?",
-  "investigation": { ...investigation result object... }
+  "question": "What evidence contributed to this result?",
+  "investigation": {
+    "evidenceType": "url",
+    "trustScore": 60,
+    "riskLevel": "Suspicious"
+  }
 }
 ```
 
----
+The endpoint requires the user's bearer token. Investigation context is size-limited.
 
-## What the Backend Actually Does
+## Analysis and Score Limitations
 
-### Without any API keys (free)
-- Real DNS lookups (A, AAAA, MX, TXT, NS, CNAME)
-- Real WHOIS domain registration data
-- Real SSL/TLS certificate inspection
-- Real HTTP header collection and redirect following
-- SPF / DMARC / DKIM selector detection
-- Brand impersonation heuristics
-- URL analysis (redirects, encoding, IP detection)
-- Deterministic trust score from 10+ evidence factors
-- Rule-based AI explanations from collected evidence
+The trust score is a heuristic based on collected evidence. It is not a probability, independently measured accuracy, or a confirmed malware verdict. The project has not been calibrated against a representative labelled dataset.
 
-### With API keys
-- VirusTotal: multi-vendor malware/phishing scan
-- Google Safe Browsing: real-time threat database
-- URLScan.io: URL sandbox scan
-- AbuseIPDB: IP reputation database
-- OpenAI / Gemini: natural language AI explanations
+External reputation checks only run when their API keys are configured. Reports and explanations should be interpreted using the findings and sources shown for that investigation.
 
----
+## What the Backend Checks
 
-## Trust Score Logic
-
-| Score | Risk Level |
-|-------|-----------|
-| 0–40 | Dangerous |
-| 41–60 | Suspicious |
-| 61–100 | Safe |
-
-The score is deterministic — calculated from weighted evidence factors. It is never randomly generated.
-
----
+Depending on evidence type and available services, the backend can collect DNS, WHOIS, TLS, HTTP, email-authentication, QR, and APK evidence. Evidence processing normalizes indicators and correlates relationships. Optional API keys enable additional threat-intelligence lookups. An optional OpenAI or Gemini key enables generated explanations; otherwise a rule-based explanation is used.
 
 ## Production Notes
 
-1. Change `SECRET_KEY` in `.env`
-2. Replace `DATABASE_URL` with PostgreSQL: `postgresql+psycopg2://user:pass@host/db`
-3. Remove `"*"` from CORS `allow_origins` in `main.py` — list explicit frontend origins
-4. Run behind a reverse proxy (nginx/caddy) with HTTPS
-5. Use `uvicorn main:app --workers 4` for production
-
----
+1. Set a strong, private `SECRET_KEY`.
+2. Use a managed PostgreSQL database for production.
+3. Configure CORS in `main.py` for the exact frontend origin.
+4. Keep API keys in the deployment platform's secret environment variables.
+5. Set appropriate upload and request limits for the hosting plan.
 
 ## Project Structure
 
-```
+```text
 backend/
-├── main.py               # FastAPI app, CORS, lifespan
-├── config.py             # Settings via pydantic-settings
-├── database.py           # SQLAlchemy engine + session
-├── models.py             # DB models (User, Investigation, Report)
-├── schemas.py            # Pydantic request/response schemas
-├── auth.py               # JWT creation + dependency
-├── security.py           # bcrypt password hashing
+├── main.py
+├── config.py
+├── database.py
+├── models.py
+├── schemas.py
+├── auth.py
+├── security.py
 ├── services/
-│   ├── website.py        # HTTP fetch, headers, redirects, brand detection
-│   ├── domain.py         # Domain intelligence aggregator
-│   ├── ssl.py            # TLS certificate inspection
-│   ├── dns.py            # DNS record lookups
-│   ├── whois_svc.py      # WHOIS registration data
-│   ├── reputation.py     # VirusTotal, GSB, URLScan, AbuseIPDB
-│   ├── email_svc.py      # SPF, DKIM, DMARC, spoofing
-│   ├── qr_svc.py         # QR decoding + URL investigation
-│   ├── apk_svc.py        # APK static analysis (androguard)
-│   ├── risk_engine.py    # Deterministic trust score calculator
-│   ├── ai.py             # AI explanation (LLM + rule-based fallback)
-│   └── report.py         # PDF + JSON report generation
+│   ├── website.py
+│   ├── domain.py
+│   ├── ssl.py
+│   ├── dns.py
+│   ├── whois_svc.py
+│   ├── reputation.py
+│   ├── email_svc.py
+│   ├── qr_svc.py
+│   ├── apk_svc.py
+│   ├── evidence.py
+│   ├── evidence_processing.py
+│   ├── risk_engine.py
+│   ├── ai.py
+│   └── report.py
 ├── routers/
-│   ├── investigation.py  # POST /analyze
-│   ├── assistant.py      # POST /ask-ai
-│   ├── reports.py        # GET /reports
-│   └── users.py          # Auth endpoints
+│   ├── investigation.py
+│   ├── assistant.py
+│   ├── reports.py
+│   └── users.py
 └── utils/
-    ├── validators.py     # URL/email/domain validation
-    └── helpers.py        # SHA256, IP resolution, helpers
+    ├── validators.py
+    └── helpers.py
 ```

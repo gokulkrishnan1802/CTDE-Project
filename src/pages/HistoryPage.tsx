@@ -213,7 +213,7 @@ function InvestigationDetails({ inv, onBack, onPDF }: { inv: Investigation; onBa
         <MetaCard label="Trust Score" value={`${inv.trustScore}/100`} valueClass={scoreColor} />
         <MetaCard label="Risk Level" value={inv.riskLevel} valueClass={`text-${riskColor}-400`} />
         <MetaCard label="Investigator" value={inv.investigator} />
-        <MetaCard label="AI Confidence" value={`${inv.aiConfidence}%`} />
+        <MetaCard label="Score Calibration" value="Not benchmarked" />
         <MetaCard label="Created" value={new Date(inv.createdAt).toLocaleDateString()} />
       </div>
 

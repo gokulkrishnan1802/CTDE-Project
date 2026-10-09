@@ -217,7 +217,7 @@ export interface BackendReputation {
 
 export interface BackendBrand {
   brandName: string;
-  confidence: number;
+  confidence: number | null;
   evidence: string;
   visualSimilarity: number;
   domainSimilarity: number;
@@ -520,7 +520,7 @@ export function mapBackendResponse(
   return {
     analysis,
     evidencePanel,
-    aiConfidence: res.confidence,
+    aiConfidence: res.confidence ?? 0,
   };
 }
 
