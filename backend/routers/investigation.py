@@ -2552,147 +2552,63 @@ def _recommendations_email_headers(
     header_evidence: dict,
     risk_level: str,
 ) -> list[str]:
-
     recommendations = []
+    indicators = header_evidence.get("spoofingIndicators") or []
 
-    indicators = header_evidence.get(
-        "spoofingIndicators",
-        [],
-    )
+    results = {
+        "SPF": str(header_evidence.get("spfResult", "unknown")).lower(),
+        "DKIM": str(header_evidence.get("dkimResult", "unknown")).lower(),
+        "DMARC": str(header_evidence.get("dmarcResult", "unknown")).lower(),
+    }
 
-    spf = header_evidence.get(
-        "spfResult",
-        "unknown",
-    )
+    failed_values = {"fail", "softfail", "permerror"}
+    failed = [name for name, result in results.items() if result in failed_values]
+    unavailable = [
+        name for name, result in results.items()
+        if result not in failed_values and result != "pass"
+    ]
 
-    dkim = header_evidence.get(
-        "dkimResult",
-        "unknown",
-    )
-
-    dmarc = header_evidence.get(
-        "dmarcResult",
-        "unknown",
-    )
-
-    # SPF
-    if spf == "fail":
+    if "SPF" in failed:
         recommendations.append(
-            "SPF authentication failed. "
-            "Do not trust the sender identity solely "
-            "from the visible From address."
+            "SPF authentication failed. Do not rely on the visible From address alone."
+        )
+    if "DKIM" in failed:
+        recommendations.append(
+            "DKIM authentication failed. Treat the message as potentially modified or spoofed."
+        )
+    if "DMARC" in failed:
+        recommendations.append(
+            "DMARC authentication failed. Verify the sender through an independent channel."
         )
 
-    # DKIM
-    if dkim == "fail":
+    if unavailable:
         recommendations.append(
-            "DKIM authentication failed. "
-            "Treat the message as potentially modified "
-            "or spoofed."
+            f"Could not verify {', '.join(unavailable)}. Treat the sender as unverified "
+            "and confirm through a known official channel before acting."
         )
 
-    # DMARC
-    if dmarc == "fail":
+    if indicators:
         recommendations.append(
-            "DMARC authentication failed. "
-            "Verify the sender through an independent "
-            "communication channel."
+            f"The analysis reported {len(indicators)} header indicator(s). Review the "
+            "listed indicators before trusting the message."
         )
 
-    # Reply-To
-    if any(
-        "Reply-To domain"
-        in indicator
-        for indicator in indicators
-    ):
-        recommendations.append(
-            "Reply-To domain differs from the From domain. "
-            "Do not reply or provide sensitive information "
-            "until the sender is verified."
-        )
-
-    # Return-Path
-    if any(
-        "Return-Path domain"
-        in indicator
-        for indicator in indicators
-    ):
-        recommendations.append(
-            "Return-Path differs from the visible sender "
-            "domain. Investigate the mail infrastructure "
-            "before trusting the message."
-        )
-
-    # High risk
     if risk_level == "Dangerous":
         recommendations.append(
-            "Do NOT click links, open attachments, "
-            "or provide credentials from this email."
+            "Do not click links, open attachments, or provide credentials from this email."
         )
-
     elif risk_level == "Suspicious":
         recommendations.append(
-            "Treat this email as suspicious and verify "
-            "the sender through an independent channel."
+            "Treat this email as suspicious and verify the sender independently."
         )
 
-    # Default
     if not recommendations:
         recommendations.append(
-            "No major authentication or spoofing "
-            "indicators were detected. Continue normal "
-            "email security practices."
+            "No major authentication or spoofing indicators were detected. "
+            "This result does not guarantee the message is safe."
         )
 
     return recommendations
-def _reason_text(risk: RiskResult) -> str:
-
-    if not risk.factors:
-        return (
-            f"Trust Score: {risk.score}/100. "
-            f"No evidence factors were collected."
-        )
-
-    negative = [
-        factor.label
-        for factor in risk.factors
-        if not factor.positive
-    ]
-
-    positive = [
-        factor.label
-        for factor in risk.factors
-        if factor.positive
-    ]
-
-    parts = []
-
-    if negative:
-        parts.append(
-            f"Risk factors: {'; '.join(negative[:3])}"
-        )
-
-    if positive:
-        parts.append(
-            f"Trust factors: {'; '.join(positive[:3])}"
-        )
-
-    return (
-        " | ".join(parts)
-        + f". Final score: {risk.score}/100."
-    )
-
-
-def _score_to_risk(score: int) -> str:
-
-    if score <= 40:
-        return "Dangerous"
-
-    if score <= 60:
-        return "Suspicious"
-
-    return "Safe"
-
 
 def _generate_case_id(db: Session) -> str:
 
