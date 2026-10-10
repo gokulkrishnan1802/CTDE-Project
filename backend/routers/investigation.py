@@ -2640,6 +2640,12 @@ def _reason_text(risk: RiskResult) -> str:
 
     explanation = " | ".join(parts) or "No specific factors were recorded"
     return f"{explanation}. Final score: {risk.score}/100."
+def _score_to_risk(score: int) -> str:
+    if score <= 40:
+        return "Dangerous"
+    if score <= 60:
+        return "Suspicious"
+    return "Safe"
 @router.post("/qr", response_model=AnalysisResponse)
 async def analyze_qr_image(
     file: UploadFile = File(...),
