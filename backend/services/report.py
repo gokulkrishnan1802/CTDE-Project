@@ -1,6 +1,7 @@
 """Create downloadable JSON and PDF investigation reports."""
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -123,6 +124,44 @@ def generate_pdf_report(investigation_data: dict, investigation_id: str) -> str:
         ev = investigation_data or {}
         story: list[Any] = []
 
+        def report_ai_text(key: str, section: str) -> str:
+            """Remove Markdown and avoid printing a truncated or conflicting score."""
+            raw = str(ev.get(key) or "")
+            cleaned = re.sub(r"(?m)^\s*#{1,6}\s*", "", raw)
+            cleaned = cleaned.replace("**", "").replace("__", "").replace("`", "").strip()
+            score_match = re.search(
+                r"\b(?:trust\s+)?score(?:\s+of)?\s*:?\s*(\d{1,3})(?:\s*/\s*100)?",
+                cleaned,
+                re.IGNORECASE,
+            )
+            mentions_score = re.search(r"\b(?:trust\s+)?score\b", cleaned, re.IGNORECASE)
+            try:
+                expected_score = int(ev.get("trustScore", 0))
+            except (TypeError, ValueError):
+                expected_score = 0
+
+            invalid_score_text = bool(mentions_score) and (
+                score_match is None
+                or int(score_match.group(1)) != expected_score
+                or re.search(r"/\s*100", score_match.group(0)) is None
+            )
+            if cleaned and not invalid_score_text and raw.count("**") % 2 == 0:
+                return cleaned
+
+            evidence_type = str(ev.get("evidenceType") or "Evidence").upper()
+            risk_level = str(ev.get("riskLevel") or "Unknown")
+            if section == "summary":
+                return (
+                    f"{evidence_type} investigation completed with a heuristic Trust Score of "
+                    f"{expected_score}/100 and a {risk_level} risk level. This score is not a "
+                    "probability or a confirmed malware verdict."
+                )
+            return (
+                f"The system assigned a heuristic Trust Score of {expected_score}/100 and "
+                f"classified the result as {risk_level}. This assessment is based on the "
+                "findings in this report and is not a probability or a confirmed malware verdict."
+            )
+
         def add_section(title: str, content: Any) -> None:
             text = str(content if content not in (None, "") else "Not available")
             safe_lines = "<br/>".join(safe(line) for line in text.splitlines())
@@ -228,8 +267,8 @@ def generate_pdf_report(investigation_data: dict, investigation_id: str) -> str:
 
         mitre = ev.get("mitreMapping") or []
         add_section("MITRE ATT&CK Mapping", "\n".join(map(str, mitre)) if mitre else "No techniques mapped.")
-        add_section("AI Explanation", ev.get("aiExplanation", "Not available"))
-        add_section("AI Summary", ev.get("aiSummary", "Not available"))
+        add_section("AI Explanation", report_ai_text("aiExplanation", "explanation"))
+        add_section("AI Summary", report_ai_text("aiSummary", "summary"))
 
         recommendations = ev.get("recommendations") or []
         add_section(

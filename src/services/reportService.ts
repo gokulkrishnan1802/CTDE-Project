@@ -32,6 +32,43 @@ function localDate(value: unknown): string {
   return Number.isNaN(date.getTime()) ? display(value) : date.toLocaleString();
 }
 
+function reportAiText(
+  value: unknown,
+  inv: Investigation,
+  section: 'summary' | 'explanation',
+): string {
+  const raw = String(value ?? '');
+  const cleaned = pdfText(raw)
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '')
+    .replace(/`/g, '')
+    .trim();
+
+  const scoreMatch = cleaned.match(
+    /\b(?:trust\s+)?score(?:\s+of)?\s*:?\s*(\d{1,3})(?:\s*\/\s*100)?/i,
+  );
+  const scoreIsIncompleteOrWrong =
+    /\b(?:trust\s+)?score\b/i.test(cleaned) &&
+    (!scoreMatch ||
+      Number(scoreMatch[1]) !== Number(inv.trustScore) ||
+      !/\/\s*100/.test(scoreMatch[0]));
+  const rawBoldMarkers = raw.match(/\*\*/g) || [];
+  const hasUnclosedBold = rawBoldMarkers.length % 2 !== 0;
+
+  if (cleaned && !scoreIsIncompleteOrWrong && !hasUnclosedBold) {
+    return cleaned;
+  }
+
+  const evidenceType = display(inv.evidenceType).toUpperCase();
+  const score = display(inv.trustScore);
+  const risk = display(inv.riskLevel);
+  if (section === 'summary') {
+    return `${evidenceType} investigation completed with a heuristic Trust Score of ${score}/100 and a ${risk} risk level. This score is not a probability or a confirmed malware verdict.`;
+  }
+  return `The system assigned a heuristic Trust Score of ${score}/100 and classified the result as ${risk}. This assessment is based on the findings in this report and is not a probability or a confirmed malware verdict.`;
+}
+
 export function generatePDFReport(inv: Investigation): void {
   const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -211,8 +248,14 @@ export function generatePDFReport(inv: Investigation): void {
     'MITRE ATT&CK Mapping',
     (inv.analysis.mitreMapping || []).join('\n') || 'No techniques mapped.',
   );
-  addSection('Analysis Explanation', inv.analysis.aiExplanation);
-  addSection('Analysis Summary', inv.analysis.aiSummary);
+  addSection(
+    'Analysis Explanation',
+    reportAiText(inv.analysis.aiExplanation, inv, 'explanation'),
+  );
+  addSection(
+    'Analysis Summary',
+    reportAiText(inv.analysis.aiSummary, inv, 'summary'),
+  );
   addSection(
     'Recommendations',
     (inv.analysis.recommendations || []).length
