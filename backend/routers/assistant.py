@@ -1,7 +1,4 @@
-"""
-AI assistant router.
-POST /ask-ai — answer user questions about an investigation.
-"""
+"""Authenticated cybersecurity assistant with optional investigation context."""
 import json
 import logging
 
@@ -27,7 +24,11 @@ async def ask_ai(
             detail="Question cannot be empty",
         )
 
-    context_size = len(json.dumps(req.investigation, default=str))
+    history = [turn.model_dump() for turn in req.history]
+    context_size = len(json.dumps(
+        {"investigation": req.investigation, "history": history},
+        default=str,
+    ))
     if context_size > 20_000:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -35,7 +36,7 @@ async def ask_ai(
         )
 
     try:
-        answer = await answer_question(req.question, req.investigation)
+        answer = await answer_question(req.question, req.investigation, history)
         return AskAIResponse(answer=answer)
     except Exception as exc:
         logger.exception("AI assistant error")

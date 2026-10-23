@@ -127,9 +127,17 @@ class EmailHeaderRequest(BaseModel):
         return value.strip()
 
 
+class ChatTurn(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=4000)
+
+
 class AskAIRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
-    investigation: dict[str, Any]
+    # Optional so the assistant can answer general cybersecurity questions.
+    investigation: Optional[dict[str, Any]] = None
+    # Recent messages allow the assistant to understand follow-up questions.
+    history: List[ChatTurn] = Field(default_factory=list, max_length=12)
 
 
 class AskAIResponse(BaseModel):

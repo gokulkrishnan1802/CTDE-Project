@@ -380,11 +380,12 @@ export async function postAnalyzeEmailHeaders(
 
 export interface AskAIRequest {
   question: string;
-  investigation: AnalysisResult & {
+  investigation?: (AnalysisResult & {
     evidenceType: string;
     evidenceValue: string;
     caseId: string;
-  };
+  }) | null;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 export interface AskAIResponse {
