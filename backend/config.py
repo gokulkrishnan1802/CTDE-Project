@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     ABUSEIPDB_API_KEY: Optional[str] = None
 
     # AI providers (optional — rule-based fallback when absent)
+    GROQ_API_KEY: Optional[str] = None
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4o-mini"
     GOOGLE_API_KEY: Optional[str] = None

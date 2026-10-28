@@ -18,6 +18,8 @@ Create a `.env` file in the `backend/` directory. AI and threat intelligence key
 
 ```env
 # Optional AI providers
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 GOOGLE_API_KEY=
@@ -90,7 +92,7 @@ External reputation checks only run when their API keys are configured. Reports 
 
 ## What the Backend Checks
 
-Depending on evidence type and available services, the backend can collect DNS, WHOIS, TLS, HTTP, email-authentication, QR, and APK evidence. Evidence processing normalizes indicators and correlates relationships. Optional API keys enable additional threat-intelligence lookups. An optional OpenAI or Gemini key enables generated explanations; otherwise a rule-based explanation is used.
+Depending on evidence type and available services, the backend can collect DNS, WHOIS, TLS, HTTP, email-authentication, QR, and APK evidence. Evidence processing normalizes indicators and correlates relationships. Optional API keys enable additional threat-intelligence lookups. An optional Groq, OpenAI, or Gemini key enables generated explanations; otherwise a rule-based explanation is used. On Render, set `GROQ_API_KEY` in the backend web service's environment settings and redeploy. Do not put the key in frontend code or commit it to Git.
 
 ## Production Notes
 

@@ -38,6 +38,7 @@ def _log_api_key_status():
         "Google Safe Browsing": settings.GOOGLE_SAFE_BROWSING_API_KEY,
         "URLScan.io": settings.URLSCAN_API_KEY,
         "AbuseIPDB": settings.ABUSEIPDB_API_KEY,
+        "Groq": settings.GROQ_API_KEY,
         "OpenAI": settings.OPENAI_API_KEY,
         "Google AI (Gemini)": settings.GOOGLE_API_KEY,
     }
@@ -95,6 +96,7 @@ async def health():
             "googleSafeBrowsing": bool(settings.GOOGLE_SAFE_BROWSING_API_KEY),
             "urlscan": bool(settings.URLSCAN_API_KEY),
             "abuseipdb": bool(settings.ABUSEIPDB_API_KEY),
+            "groq": bool(settings.GROQ_API_KEY),
             "openai": bool(settings.OPENAI_API_KEY),
             "gemini": bool(settings.GOOGLE_API_KEY),
         },
