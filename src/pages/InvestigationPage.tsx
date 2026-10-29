@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { investigationStore } from '../lib/storage';
-import { generateCaseId, generatePDFReport } from '../lib/investigationEngine';
+import {
+  generateCaseId,
+  generateJSONReport,
+  generatePDFReport,
+} from '../lib/investigationEngine';
 
 import {
   runInvestigation,
@@ -32,6 +36,7 @@ import {
   CheckCircle2,
   Loader2,
   FileDown,
+  FileJson,
   ShieldCheck,
   AlertTriangle,
   ShieldAlert,
@@ -155,9 +160,6 @@ export default function InvestigationPage({
   const [reportGenerated, setReportGenerated] =
     useState(false);
 
-  const [investigationResult, setInvestigationResult] =
-    useState<InvestigationResult | null>(null);
-
   // ──────────────────────────────────────────────────────────────────────────
   // START INVESTIGATION
   // ──────────────────────────────────────────────────────────────────────────
@@ -228,10 +230,6 @@ export default function InvestigationPage({
 
     setTimeline(
       result.timeline
-    );
-
-    setInvestigationResult(
-      result
     );
 
     // Save the REAL decoded QR destination.
@@ -309,7 +307,6 @@ export default function InvestigationPage({
 
     setSavedInvestigation(null);
     setReportGenerated(false);
-    setInvestigationResult(null);
   };
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1179,8 +1176,12 @@ function ResultStep(props: {
   const handleDownloadPDF = () => {
     if (props.savedInvestigation) {
       generatePDFReport(props.savedInvestigation);
-    } else {
-      props.onGenerateReport();
+    }
+  };
+
+  const handleDownloadJSON = () => {
+    if (props.savedInvestigation) {
+      generateJSONReport(props.savedInvestigation);
     }
   };
 
@@ -1516,7 +1517,6 @@ function ResultStep(props: {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {buildVerificationModules(
                 analysis,
-                evidencePanel,
               ).map((mod, index) => (
                 <div
                   key={index}
@@ -1830,13 +1830,32 @@ function ResultStep(props: {
       ========================================================= */}
       <div className="flex flex-col sm:flex-row gap-3">
 
-        <button
-          onClick={handleDownloadPDF}
-          className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-semibold rounded-xl transition-all"
-        >
-          <FileDown className="w-4 h-4" />
-          {props.reportGenerated ? 'Download Report' : 'Save & Download Report'}
-        </button>
+        {props.reportGenerated ? (
+          <>
+            <button
+              onClick={handleDownloadPDF}
+              className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-semibold rounded-xl transition-all"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF Report
+            </button>
+            <button
+              onClick={handleDownloadJSON}
+              className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 hover:border-yellow-500/50 text-yellow-400 font-semibold rounded-xl transition-all"
+            >
+              <FileJson className="w-4 h-4" />
+              Download JSON Report
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={props.onGenerateReport}
+            className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-semibold rounded-xl transition-all"
+          >
+            <FileDown className="w-4 h-4" />
+            Save Report
+          </button>
+        )}
 
         <button
           onClick={props.onNewInvestigation}
@@ -2111,8 +2130,7 @@ function buildScoreBreakdown(
 // ══════════════════════════════════════════════════════════════════════════════
 
 function buildVerificationModules(
-  analysis: AnalysisResult,
-  _evidencePanel: EvidencePanel
+  analysis: AnalysisResult
 ): {
   name: string;
   detail: string;

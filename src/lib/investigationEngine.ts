@@ -3,4 +3,7 @@ export function generateCaseId(existing: number): string {
   return `CTDE-${year}-${String(existing + 1).padStart(4, '0')}`;
 }
 
-export { generatePDFReport } from '../services/reportService';
+export {
+  generateJSONReport,
+  generatePDFReport,
+} from '../services/reportService';

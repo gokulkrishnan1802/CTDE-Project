@@ -10,16 +10,42 @@ const CONTENT_TOP = 47;
 const FOOTER_LINE_Y = 280;
 const BOTTOM_LIMIT = 272;
 
+export function generateJSONReport(inv: Investigation): void {
+  const blob = new Blob([JSON.stringify(inv, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `CTDE_Report_${inv.caseId}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 function pdfText(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\u0000/g, '')
+  const normalized = String(value ?? '')
+    .split(String.fromCharCode(0))
+    .join('')
     .replace(/\r\n?/g, '\n')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[\u2010-\u2015\u2212]/g, '-')
     .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201c\u201d]/g, '"')
-    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, '?');
+    .replace(/[\u201c\u201d]/g, '"');
+
+  return normalized.split('').map((character) => {
+    const code = character.charCodeAt(0);
+    return (
+      character === '\t' ||
+      character === '\n' ||
+      character === '\r' ||
+      (code >= 0x20 && code <= 0x7e)
+    )
+      ? character
+      : '?';
+  }).join('');
 }
 
 function display(value: unknown): string {

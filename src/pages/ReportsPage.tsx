@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { investigationStore } from '../lib/storage';
-import { generatePDFReport } from '../services/reportService';
+import { generateJSONReport, generatePDFReport } from '../services/reportService';
 import type { Investigation, RiskLevel, EvidenceType } from '../types';
 import { FileText, Download, Eye, ShieldCheck, AlertTriangle, ShieldAlert, X, Globe, Mail, Smartphone, QrCode, Send, FileJson, Printer } from 'lucide-react';
 
@@ -36,18 +36,6 @@ export default function ReportsPage({ refreshKey }: Props) {
   );
 
   const downloadPDF = (inv: Investigation) => generatePDFReport(inv);
-
-  const exportJSON = (inv: Investigation) => {
-    const blob = new Blob([JSON.stringify(inv, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${inv.caseId}_export.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const printReport = (inv: Investigation) => {
   const win = window.open('', '_blank');
@@ -242,11 +230,11 @@ export default function ReportsPage({ refreshKey }: Props) {
 
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <button
-                    onClick={() => exportJSON(inv)}
+                    onClick={() => generateJSONReport(inv)}
                     className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#0a0e14] border border-gray-800 hover:border-yellow-500/30 text-gray-500 hover:text-yellow-400 text-[10px] rounded-lg transition-all"
                   >
                     <FileJson className="w-3.5 h-3.5" />
-                    Technical Export
+                    JSON Report
                   </button>
 
                   <button
@@ -292,13 +280,21 @@ export default function ReportsPage({ refreshKey }: Props) {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
                 <button
                   onClick={() => downloadPDF(selected)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium rounded-lg hover:bg-emerald-500/20 transition-all"
                 >
                   <Download className="w-3.5 h-3.5" />
                   PDF
+                </button>
+
+                <button
+                  onClick={() => generateJSONReport(selected)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-xs font-medium rounded-lg hover:bg-yellow-500/20 transition-all"
+                >
+                  <FileJson className="w-3.5 h-3.5" />
+                  JSON
                 </button>
 
                 <button

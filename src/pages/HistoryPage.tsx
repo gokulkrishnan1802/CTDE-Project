@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { investigationStore } from '../lib/storage';
-import { generatePDFReport } from '../services/reportService';
+import { generateJSONReport, generatePDFReport } from '../services/reportService';
 import type { Investigation, RiskLevel, EvidenceType } from '../types';
-import { FolderSearch, Plus, Search, ShieldCheck, AlertTriangle, ShieldAlert, Eye, Globe, Mail, Smartphone, QrCode, Send, FileDown, Clock, ArrowLeft, Activity, Bot, Lightbulb } from 'lucide-react';
+import { FolderSearch, Plus, Search, ShieldCheck, AlertTriangle, ShieldAlert, Eye, Globe, Mail, Smartphone, QrCode, Send, FileDown, FileJson, Clock, ArrowLeft, Activity, Bot, Lightbulb } from 'lucide-react';
 
 interface Props {
   refreshKey: number;
@@ -96,7 +96,12 @@ export default function HistoryPage({ refreshKey, onStartNew }: Props) {
       )}
 
       {selected ? (
-        <InvestigationDetails inv={selected} onBack={() => setSelected(null)} onPDF={() => generatePDFReport(selected)} />
+        <InvestigationDetails
+          inv={selected}
+          onBack={() => setSelected(null)}
+          onPDF={() => generatePDFReport(selected)}
+          onJSON={() => generateJSONReport(selected)}
+        />
       ) : (
         <>
           {investigations.length === 0 ? (
@@ -180,7 +185,7 @@ function RiskBadge({ level }: { level: RiskLevel }) {
 }
 
 
-function InvestigationDetails({ inv, onBack, onPDF }: { inv: Investigation; onBack: () => void; onPDF: () => void }) {
+function InvestigationDetails({ inv, onBack, onPDF, onJSON }: { inv: Investigation; onBack: () => void; onPDF: () => void; onJSON: () => void }) {
   const Icon = EVIDENCE_ICONS[inv.evidenceType];
   const riskColor = inv.riskLevel === 'Safe' ? 'emerald' : inv.riskLevel === 'Suspicious' ? 'yellow' : 'red';
   const scoreColor = inv.trustScore >= 70 ? 'text-emerald-400' : inv.trustScore >= 40 ? 'text-yellow-400' : 'text-red-400';
@@ -198,9 +203,14 @@ function InvestigationDetails({ inv, onBack, onPDF }: { inv: Investigation; onBa
             <p className="text-xs text-gray-600 font-mono">{inv.caseId}</p>
           </div>
         </div>
-        <button onClick={onPDF} className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 text-sm font-medium rounded-lg transition-all">
-          <FileDown className="w-4 h-4" /> Download PDF Report
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={onPDF} className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 text-sm font-medium rounded-lg transition-all">
+            <FileDown className="w-4 h-4" /> Download PDF Report
+          </button>
+          <button onClick={onJSON} className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 hover:border-yellow-500/50 text-yellow-400 text-sm font-medium rounded-lg transition-all">
+            <FileJson className="w-4 h-4" /> Download JSON Report
+          </button>
+        </div>
       </div>
 
       {inv.caseDescription && (
